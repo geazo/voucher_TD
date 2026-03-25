@@ -1,49 +1,85 @@
-@extends('layouts.appC') @section('content')
-<div class="container py-4">
+@extends('layouts.appC')
+
+@section('content')
+<div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-sm" style="border-radius: 1rem;">
 
-            <div class="card border-0 shadow-lg" style="border-radius: 1rem; overflow: hidden;">
-                <div class="bg-success text-white text-center py-4">
-                    <i class="bi bi-check-circle-fill mb-2" style="font-size: 3rem;"></i>
-                    <h4 class="fw-bold mb-0">{{ $invoiceData['jenis'] ?? 'Transaksi Berhasil' }}</h4>
-                    <p class="text-white-50 small mb-0">{{ $invoiceData['waktu'] }}</p>
+                <div class="card-header bg-success text-white border-bottom-0 pb-3 pt-3" style="border-radius: 1rem 1rem 0 0;">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-receipt me-2"></i> Detail Transaksi</h5>
                 </div>
 
-                <div class="card-body p-4 bg-white">
-                    <div class="text-center mb-4">
-                        <p class="text-muted mb-1">Total Transaksi</p>
-                        <h2 class="fw-bold text-dark">Rp {{ number_format($invoiceData['total'], 0, ',', '.') }}</h2>
+                <div class="card-body p-4 bg-light">
+                    <div class="text-center mb-4 pb-3 border-bottom border-dashed" style="border-bottom: 2px dashed #dee2e6;">
+                        <h4 class="fw-bold text-dark mb-0">TAMAN DAYU</h4>
+
+                        <span class="badge bg-dark px-3 py-2 fs-6">{{ $invoiceData['invoice_number'] }}</span>
                     </div>
 
-                    <hr class="border-dashed mb-4" style="border-top: 2px dashed #e0e0e0;">
-
-                    <h6 class="fw-bold text-muted mb-3">Rincian Pembayaran</h6>
-
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-dark"><i class="bi bi-wallet2 text-success me-2"></i>Saldo Uang</span>
-                        <span class="fw-bold">Rp {{ number_format($invoiceData['tagihan_uang'], 0, ',', '.') }}</span>
+                    <div class="mb-4 small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Tanggal</span>
+                            <span class="fw-bold">{{ $invoiceData['waktu'] }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Petugas/Kasir</span>
+                            <span class="fw-bold">{{ $invoiceData['kasir_name'] }}</span>
+                        </div>
                     </div>
 
-                    @if($invoiceData['tagihan_poin'] > 0)
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-dark"><i class="bi bi-star text-warning me-2"></i>Potongan Poin</span>
-                        <span class="fw-bold text-primary">{{ number_format($invoiceData['tagihan_poin'], 0, ',', '.') }} Pts</span>
-                    </div>
+                    @if(count($invoiceData['items']) > 0)
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-muted border-bottom pb-2 mb-2">Rincian Item</h6>
+                            @foreach($invoiceData['items'] as $item)
+                                <div class="d-flex justify-content-between align-items-start mb-2 small">
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ $item->item_name }}</div>
+                                        <div class="text-muted">{{ $item->qty }} x Rp {{ number_format($item->price, 0, ',', '.') }}</div>
+                                    </div>
+                                    <div class="fw-bold text-dark text-end">
+                                        Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     @endif
 
-                    <hr class="border-dashed my-4" style="border-top: 2px dashed #e0e0e0;">
+                    <div class="bg-white p-3 rounded-3 border shadow-sm mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted fw-bold">TOTAL NOMINAL</span>
+                            <span class="fw-bold fs-5 text-dark">Rp {{ number_format($invoiceData['total'], 0, ',', '.') }}</span>
+                        </div>
 
-                    <a href="{{ route('customer.dashboard') }}" class="btn btn-light border w-100 py-3 fw-bold text-dark rounded-pill shadow-sm hover-bg-light">
-                        Kembali ke Beranda
+                        <hr class="my-2" style="border-top: 1px solid #dee2e6;">
+
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-1"></i>Uang</span>
+                            <span class="fw-bold text-success">Rp {{ number_format($invoiceData['tagihan_uang'], 0, ',', '.') }}</span>
+                        </div>
+
+                        @if ($invoiceData['tagihan_poin'] > 0)
+                            <div class="d-flex justify-content-between mb-1 small">
+                                <span class="text-dark fw-bold"><i class="bi bi-star-fill text-primary me-1"></i>Poin</span>
+                                <span class="fw-bold text-primary">{{ number_format($invoiceData['tagihan_poin'], 0, ',', '.') }} Pts</span>
+                            </div>
+                        @endif
+                    </div>
+
+                    @if (!empty($invoiceData['catatan']))
+                        <div class="alert alert-secondary p-2 mt-2 mb-0 small text-center border-0 rounded-3">
+                            {{ $invoiceData['catatan'] }}
+                        </div>
+                    @endif
+
+                </div>
+
+                <div class="card-footer bg-white border-top-0 d-flex justify-content-center p-3" style="border-radius: 0 0 1rem 1rem;">
+                    <a href="{{ route('customer.dashboard') }}" class="btn btn-outline-secondary fw-bold w-100">
+                        <i class="bi bi-arrow-left me-2"></i> Kembali ke Dashboard
                     </a>
                 </div>
             </div>
-
-            <div class="text-center mt-3">
-                <small class="text-muted">Terima kasih telah bermain di Taman Dayu Golf Club & Resort.</small>
-            </div>
-
         </div>
     </div>
 </div>

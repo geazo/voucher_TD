@@ -94,7 +94,7 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Nama Layanan / Item</label>
-                        <input type="text" name="nama" class="form-control" placeholder="Contoh: Driving Range 1 Jam" required autofocus>
+                        <input type="text" name="nama" class="form-control" placeholder="" required autofocus>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Harga (Rp)</label>

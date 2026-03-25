@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Customer extends Authenticatable
 {
     protected $fillable = [
-        'membership_id',
         'nama',
-        'email',
         'notelp',
+        'email',
         'password',
-        'f_aktif'
+        'f_aktif',
+        'membership_id',
+        'kota_domisili',
+        'gender',
     ];
 
     protected $hidden = [

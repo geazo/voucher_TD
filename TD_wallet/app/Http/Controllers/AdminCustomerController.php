@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\CustomersExport;
 use App\Models\Customer;
 use App\Models\Membership;
+use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,8 @@ class AdminCustomerController extends Controller
             'nama'   => 'required|string|max:255',
             'notelp' => 'required|string|unique:customers,notelp|max:15',
             'email'  => 'required|email|unique:customers,email',
+            'kota_domisili' => 'required|string|max:255',
+            'gender' => 'required|in:Laki-laki,Perempuan',
         ]);
 
         try {
@@ -62,13 +65,27 @@ class AdminCustomerController extends Controller
                     'nama'     => $request->nama,
                     'notelp'   => $request->notelp,
                     'email'    => $request->email,
+                    'kota_domisili' => $request->kota_domisili,
+                    'gender'        => $request->gender,
                     'password' => 'password', // Password default, bisa diubah nanti
                     'f_aktif'  => true,
                 ]);
-
+                $rekeningUtama = Wallet::generateNoRekening(null);
                 $operatorId = auth()->id();
-                Wallet::create(['customer_id' => $customer->id, 'type' => 'Uang', 'operator_id' => $operatorId]);
-                Wallet::create(['customer_id' => $customer->id, 'type' => 'Poin', 'operator_id' => $operatorId]);
+                // 1. Buat Dompet Uang menggunakan generate-an rekening utama
+                Wallet::create([
+                    'no_rekening' => $rekeningUtama,
+                    'customer_id' => $customer->id,
+                    'type' => 'Uang',
+                    'operator_id' => $operatorId
+                ]);
+                // 2. Buat Dompet Poin menggunakan rekening utama yang SAMA
+                Wallet::create([
+                    'no_rekening' => $rekeningUtama,
+                    'customer_id' => $customer->id,
+                    'type' => 'Poin',
+                    'operator_id' => $operatorId
+                ]);
             });
 
             return redirect()->route('topup.index')->with('success', 'Customer baru berhasil didaftarkan!');
@@ -82,6 +99,25 @@ class AdminCustomerController extends Controller
         $memberships = Membership::all();
         return view('admin.customers_edit', compact('customer', 'memberships'));
     }
+    public function show($id)
+    {
+        // 1. Ambil data customer
+        $customer = \App\Models\Customer::with('wallets')->findOrFail($id);
+
+        // 2. Pisahkan dompet untuk ditampilkan di card
+        $dompetUang = $customer->wallets->where('type', 'Uang')->first();
+        $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
+
+        // 3. Ambil riwayat transaksi KHUSUS untuk customer ini
+        $transactions = Transaction::whereHas('wallet', function($q) use ($id) {
+                $q->where('customer_id', $id);
+            })
+            ->with('operator') // Untuk mengambil nama kasir/admin
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('admin.customers_show', compact('customer', 'dompetUang', 'dompetPoin', 'transactions'));
+    }
 
     // Proses Update (Superadmin)
     public function update(Request $request, Customer $customer)
@@ -92,6 +128,8 @@ class AdminCustomerController extends Controller
             'notelp' => 'required|string|max:15|unique:customers,notelp,' . $customer->id,
             'membership_id' => 'nullable|exists:memberships,id',
             'f_aktif' => 'required|boolean',
+            'kota_domisili' => 'required|string|max:255',
+            'gender' => 'required|in:Laki-laki,Perempuan',
         ]);
 
         $customer->update($request->all());

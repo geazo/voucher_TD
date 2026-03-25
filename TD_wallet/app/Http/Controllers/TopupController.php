@@ -32,19 +32,23 @@ class TopupController extends Controller
             'customer_id'   => 'required|exists:customers,id',
             'membership_id' => 'required|exists:memberships,id',
         ]);
-        // 2. Ambil data customer (beserta dompet dan transaksinya) & paket yang dipilih
+
+        // 2. Ambil data customer & paket yang dipilih
         $customer = Customer::with('wallets.transactions')->findOrFail($request->customer_id);
         $requestedPackage = Membership::findOrFail($request->membership_id);
 
         // Jika customer sudah punya membership DAN mencoba membeli tier yang berbeda
         if ($customer->membership_id && $customer->membership_id !== $requestedPackage->id) {
-            // Hitung sisa saldo uang saat ini
+            // Hitung sisa saldo uang AKTIF saat ini dari kolom sisa_saldo (yang belum expired)
             $walletUang = $customer->wallets->where('type', 'Uang')->first();
-            $kreditUang = $walletUang->transactions->where('type', 'kredit')->sum('nominal');
-            $debitUang  = $walletUang->transactions->where('type', 'debit')->sum('nominal');
-            $saldoUang  = $kreditUang - $debitUang;
-            if ($saldoUang > 0) {
-                return back()->with('error', "Gagal Proses Topup : Customer masih memiliki Saldo Uang (Rp " . number_format($saldoUang, 0, ',', '.') . ") di tier " . $customer->membership->name . ". Saldo harus habis habis untuk pindah tier, atau silakan buat akun baru untuk customer ini.");
+            $saldoUangAktif = $walletUang->transactions()
+                ->where('type', 'kredit')
+                ->where('sisa_saldo', '>', 0)
+                ->where('expired_at', '>=', now()->toDateString())
+                ->sum('sisa_saldo');
+
+            if ($saldoUangAktif > 0) {
+                return back()->with('error', "Gagal Proses Topup : Customer masih memiliki Saldo Uang Aktif (Rp " . number_format($saldoUangAktif, 0, ',', '.') . ") di tier " . $customer->membership->name . ". Saldo harus habis untuk pindah tier, atau silakan buat akun baru untuk customer ini.");
             }
         }
         // ==========================================
@@ -53,30 +57,59 @@ class TopupController extends Controller
                 $operatorId = auth()->id();
                 $nominalTopup = $requestedPackage->harga;
                 $bonusPoin = $nominalTopup * ($requestedPackage->bonus_topup / 100);
-                // cek wallet Uang & Poin customer
+
                 $walletUang = $customer->wallets->where('type', 'Uang')->first();
                 $walletPoin = $customer->wallets->where('type', 'Poin')->first();
-                // 3. Masukkan Saldo Uang Utama
+
+                // Masa berlaku sampai 31 Desember tahun ini (Akhir Tahun)
+                $masaBerlaku = now()->endOfYear();
+
+                // 3. Masukkan Saldo Uang Utama (KREDIT)
                 Transaction::create([
                     'wallet_id'   => $walletUang->id,
-                    'nominal'     => $nominalTopup,
                     'type'        => 'kredit',
+                    'nominal'     => $nominalTopup,
+                    'sisa_saldo'  => $nominalTopup, // Saldo awal utuh
+                    'expired_at'  => $masaBerlaku,  // Kapan hangus
                     'operator_id' => $operatorId
                 ]);
-                // 4. Masukkan Saldo Poin Bonus (Jika ada)
+
+                // 4. Masukkan Saldo Poin Bonus (KREDIT)
                 if ($bonusPoin > 0) {
                     Transaction::create([
                         'wallet_id'   => $walletPoin->id,
-                        'nominal'     => $bonusPoin,
                         'type'        => 'kredit',
+                        'nominal'     => $bonusPoin,
+                        'sisa_saldo'  => $bonusPoin,
+                        'expired_at'  => $masaBerlaku,
                         'operator_id' => $operatorId
                     ]);
                 }
-                // 5. Update Membership Tier (hanya jika belum punya, atau jika tiernya berubah setelah saldo habis)
+
+                // 5. Update Membership Tier & Sesuaikan Nomor Rekening
                 if ($customer->membership_id !== $requestedPackage->id) {
+                    // A. Update relasi membership di tabel customer
                     $customer->update([
                         'membership_id' => $requestedPackage->id
                     ]);
+                    // B. Tentukan Prefix (2 Huruf) dari paket yang baru dibeli
+                    $newPrefix = match (strtolower($requestedPackage->name)) {
+                        'reguler'  => 'RG',
+                        'silver'   => 'SL',
+                        'gold'     => 'GL',
+                        'platinum' => 'PL',
+                        default    => 'CS',
+                    };
+
+                    // C. Update nomor rekening pada SEMUA dompet milik customer ini (Uang & Poin)
+                    foreach ($customer->wallets as $dompet) {
+                        // Ambil 8 digit terakhir dari nomor rekening lama
+                        $kodeUnik = substr($dompet->no_rekening, 2);
+                        // Gabungkan dengan prefix baru
+                        $dompet->update([
+                            'no_rekening' => $newPrefix . $kodeUnik
+                        ]);
+                    }
                 }
             });
             return redirect()->route('topup.index')->with('success', 'Topup Paket ' . $requestedPackage->name . ' berhasil diproses!');

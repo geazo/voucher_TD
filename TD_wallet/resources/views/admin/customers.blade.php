@@ -98,6 +98,11 @@
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-2">
 
+                                        <a href="{{ route('customers.show', $c->id) }}"
+                                            class="btn btn-sm btn-outline-info me-1" title="Lihat Detail & Riwayat">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+
                                         <a href="{{ route('customers.edit', $c->id) }}"
                                             class="btn btn-sm btn-outline-primary" title="Edit Data">
                                             <i class="bi bi-pencil"></i>

@@ -17,7 +17,7 @@ class RoleMiddleware
     public function handle(Request $request, Closure $next, ... $roles): Response
     {
         if (!Auth::check()) {
-            return redirect('/login'); // Redirect ke halaman login jika belum login
+            return redirect('/'); // Redirect ke halaman login jika belum login
         }
 
         // Cek apakah role user saat ini ada di dalam daftar role yang diizinkan

@@ -12,28 +12,36 @@ class CustomerDashboardController extends Controller
 {
     public function index()
     {
-        // Ambil data customer dari guard customer
         $customer = Auth::guard('customer')->user();
-
-        // Ambil saldo dompet
         $customer->load(['wallets']);
+
         $saldoUang = $customer->wallets->where('type', 'Uang')->first()->balance ?? 0;
         $saldoPoin = $customer->wallets->where('type', 'Poin')->first()->balance ?? 0;
 
-        // Ambil riwayat transaksi, KELOMPOKKAN berdasarkan waktu dan tipe, lalu JUMLAHKAN nominalnya
+        // Tambahkan MAX(order_id) dan MAX(keterangan) agar tidak error saat GROUP BY
         $transactions = Transaction::join('wallets', 'transactions.wallet_id', '=', 'wallets.id')
             ->where('wallets.customer_id', $customer->id)
             ->selectRaw('
                 transactions.created_at,
                 transactions.type,
                 SUM(transactions.nominal) as total_nominal,
-                MIN(transactions.id) as id
+                MIN(transactions.id) as id,
+                MAX(transactions.order_id) as order_id,
+                MAX(transactions.keterangan) as keterangan
             ')
             ->groupBy('transactions.created_at', 'transactions.type')
             ->orderBy('transactions.created_at', 'desc')
             ->paginate(10);
 
-        return view('customer.dashboard', compact('customer', 'saldoUang', 'saldoPoin', 'transactions'));
+        $activeBalances = \App\Models\Transaction::join('wallets', 'transactions.wallet_id', '=', 'wallets.id')
+            ->where('wallets.customer_id', $customer->id)
+            ->where('transactions.type', 'kredit')
+            ->where('transactions.sisa_saldo', '>', 0)
+            ->select('transactions.*', 'wallets.type as wallet_type')
+            ->orderBy('transactions.expired_at', 'asc') // Urutkan dari yang paling cepat kedaluwarsa
+            ->get();
+
+        return view('customer.dashboard', compact('customer', 'saldoUang', 'saldoPoin', 'transactions', 'activeBalances'));
     }
 
     // Fungsi baru untuk merekonstruksi struk dari tabel database
@@ -41,45 +49,71 @@ class CustomerDashboardController extends Controller
     {
         $customer = Auth::guard('customer')->user();
 
-        // 1. Cari transaksi yang diklik
-        $transaction = Transaction::whereHas('wallet', function ($q) use ($customer) {
+        // 1. Cari transaksi yang diklik beserta relasi Nota-nya (jika ada)
+        $transaction = Transaction::with(['wallet', 'order.details', 'operator'])->whereHas('wallet', function ($q) use ($customer) {
             $q->where('customer_id', $customer->id);
         })->findOrFail($id);
 
-        // 2. Tarik SEMUA transaksi milik customer ini yang terjadi pada DETIK YANG SAMA
-        // Ini berguna untuk menggabungkan potongan Uang & Poin dalam 1 struk
-        $relatedTransactions = Transaction::whereHas('wallet', function ($q) use ($customer) {
-            $q->where('customer_id', $customer->id);
-        })
-            ->where('created_at', $transaction->created_at)
-            ->where('type', $transaction->type) // Sama-sama debit atau sama-sama kredit
-            ->get();
+        // 2. CEK: Apakah ini dari transaksi POS Kasir (Punya Order ID)?
+        if ($transaction->order_id) {
+            $order = $transaction->order;
 
-        // 3. Rekonstruksi data nominal
-        $tagihanUang = 0;
-        $tagihanPoin = 0;
+            $invoiceData = [
+                'invoice_number' => $order->invoice_number,
+                'total'          => $order->total_tagihan,
+                'tagihan_uang'   => $order->bayar_uang,
+                'tagihan_poin'   => $order->bayar_poin,
+                'waktu'          => $order->created_at->format('d M Y, H:i'),
+                'jenis'          => 'Pembayaran POS Berhasil',
+                'items'          => $order->details, // Mengirim rincian barang dari database
+                'is_history'     => true,
+                'kasir_name'     => $transaction->operator->nama ?? 'Kasir',
+                'catatan'        => $transaction->keterangan
+            ];
+        }
+        // 3. JIKA BUKAN POS (Ini adalah Topup, Saldo Hangus, dsb.)
+        else {
+            // Rekonstruksi data nominal dari waktu yang sama
+            $relatedTransactions = Transaction::whereHas('wallet', function ($q) use ($customer) {
+                $q->where('customer_id', $customer->id);
+            })
+                ->where('created_at', $transaction->created_at)
+                ->where('type', $transaction->type)
+                ->get();
 
-        foreach ($relatedTransactions as $rt) {
-            if ($rt->wallet->type == 'Uang') {
-                $tagihanUang += $rt->nominal;
-            } else if ($rt->wallet->type == 'Poin') {
-                $tagihanPoin += $rt->nominal;
+            $tagihanUang = 0;
+            $tagihanPoin = 0;
+
+            foreach ($relatedTransactions as $rt) {
+                if ($rt->wallet->type == 'Uang') {
+                    $tagihanUang += $rt->nominal;
+                } else if ($rt->wallet->type == 'Poin') {
+                    $tagihanPoin += $rt->nominal;
+                }
             }
+
+            // Tentukan jenis transaksi berdasarkan Tipe dan Keterangan
+            $jenisTx = 'Penyesuaian Saldo';
+            if ($transaction->type == 'kredit') {
+                $jenisTx = 'Topup Saldo Berhasil';
+            } elseif (str_contains(strtolower($transaction->keterangan), 'kedaluwarsa')) {
+                $jenisTx = 'Saldo Kedaluwarsa (Hangus)';
+            }
+
+            $invoiceData = [
+                'invoice_number' => 'TRX-' . $transaction->created_at->format('YmdHis'),
+                'total'          => $tagihanUang + $tagihanPoin,
+                'tagihan_uang'   => $tagihanUang,
+                'tagihan_poin'   => $tagihanPoin,
+                'waktu'          => $transaction->created_at->format('d M Y, H:i'),
+                'jenis'          => $jenisTx,
+                'items'          => [], // KOSONG KARENA BUKAN BELANJA ITEM
+                'is_history'     => true,
+                'kasir_name'     => $transaction->operator->nama ?? 'Sistem',
+                'catatan'        => $transaction->keterangan ?? '-'
+            ];
         }
 
-        $total = $tagihanUang + $tagihanPoin;
-
-        // 4. Format data agar persis seperti data dari Cache sebelumnya
-        $invoiceData = [
-            'total'        => $total,
-            'tagihan_uang' => $tagihanUang,
-            'tagihan_poin' => $tagihanPoin,
-            'waktu'        => $transaction->created_at->format('d M Y, H:i:s'),
-            'jenis'        => $transaction->type == 'kredit' ? 'Topup Saldo Berhasil' : 'Pembayaran Berhasil',
-            'is_history'   => true // Penanda bahwa ini dibuka dari riwayat
-        ];
-
-        // Lempar ke view invoice yang sudah ada
         return view('customer.invoice', compact('invoiceData'));
     }
 
@@ -113,6 +147,4 @@ class CustomerDashboardController extends Controller
 
         return back()->with('success', 'Password Anda berhasil diperbarui.');
     }
-
-
 }

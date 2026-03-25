@@ -95,6 +95,14 @@ class CustomerPaymentController extends Controller
             return redirect()->route('customer.dashboard')->with('error', 'Struk tidak ditemukan atau sesi sudah kedaluwarsa.');
         }
 
+        $invoiceData = array_merge([
+            'jenis'          => 'Pembayaran Berhasil',
+            'invoice_number' => 'TRX-POS-' . time(),
+            'kasir_name'     => 'Kasir Taman Dayu',
+            'items'          => [],
+            'catatan'        => ''
+        ], $invoiceData);
+
         return view('customer.invoice', compact('invoiceData'));
     }
 }

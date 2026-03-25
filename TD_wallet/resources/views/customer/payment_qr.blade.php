@@ -96,10 +96,10 @@
                             btnAction.className = "btn btn-success w-100 fw-bold py-3 rounded-3"; // Ganti warna jadi hijau
                             btnAction.innerHTML = '<i class="bi bi-receipt me-2"></i> LIHAT STRUK SEKARANG'; // Ganti teks dan ikon
 
-                            // Pindah otomatis ke halaman Struk/Invoice dalam 7 detik
+                            // Pindah otomatis ke halaman Struk/Invoice dalam 5 detik
                             setTimeout(() => {
                                 window.location.href = `/customer/pay/invoice/${token}`;
-                            }, 7000);
+                            }, 5000);
                         }
                     })
                     .catch(error => console.error('Gagal mengecek status transaksi:', error));

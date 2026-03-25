@@ -84,21 +84,26 @@ class CustomerController extends Controller
     // Proses update password
     public function updateForcePassword(Request $request)
     {
+        // 1. Validasi input
         $request->validate([
-            'password' => 'required|min:6|confirmed', // Harus ada input 'password_confirmation'
+            // Aturan 'confirmed' mensyaratkan adanya input 'password_confirmation' di form HTML
+            'password' => 'required|string|min:8|confirmed',
         ], [
-            'password.min' => 'Password minimal 6 karakter.',
+            'password.required'  => 'Password baru wajib diisi.',
+            'password.min'       => 'Password minimal 8 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.'
         ]);
 
+        // 2. Ambil data customer yang sedang login saat ini (Pastikan pakai guard 'customer')
         $customer = Auth::guard('customer')->user();
 
-        // Update password (otomatis di-hash oleh model cast)
+        // 3. Update password MENGGUNAKAN HASH (Ini kunci utamanya)
         $customer->update([
-            'password' => $request->password
+            'password' => Hash::make($request->password)
         ]);
 
-        return redirect()->route('customer.dashboard')->with('success', 'Password berhasil diperbarui! Selamat datang di portal.');
+        // 4. Arahkan langsung ke Dashboard Customer
+        return redirect()->route('customer.dashboard')->with('success', 'Password Anda berhasil diperbarui! Selamat datang.');
     }
 
     public function showForgotPasswordForm()

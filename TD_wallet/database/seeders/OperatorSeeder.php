@@ -21,13 +21,13 @@ class OperatorSeeder extends Seeder
                 'password' => 'password', // hashed
             ],
             [
-                'nama'     => 'Admin Outlet',
+                'nama'     => 'Admin Taman Dayu',
                 'email'    => 'admin@gmail.com',
                 'role'     => 'admin',
                 'password' => 'password',
             ],
             [
-                'nama'     => 'Cashier',
+                'nama'     => 'Kasir A',
                 'email'    => 'kasir01@gmail.com',
                 'role'     => 'kasir',
                 'password' => 'password',

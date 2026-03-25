@@ -16,7 +16,7 @@
                         <div class="alert alert-warning small">{{ session('warning') }}</div>
                     @endif
 
-                    <form action="{{ route('customer.password.update') }}" method="POST">
+                    <form action="{{ route('customer.force_password.update') }}" method="POST">
                         @csrf
 
                         <div class="mb-3">

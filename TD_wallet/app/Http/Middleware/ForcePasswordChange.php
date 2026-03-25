@@ -23,12 +23,12 @@ class ForcePasswordChange
         if ($customer && Hash::check('password', $customer->password)) {
 
             // Izinkan mereka mengakses route ganti password agar tidak terjadi redirect loop berulang-ulang
-            if ($request->routeIs('customer.password.change') || $request->routeIs('customer.password.update') || $request->routeIs('customer.logout')) {
+            if ($request->routeIs('customer.force_password.change') || $request->routeIs('customer.force_password.update') || $request->routeIs('customer.logout')) {
                 return $next($request);
             }
 
             // Jika mencoba akses halaman lain, paksa redirect ke halaman ganti password
-            return redirect()->route('customer.password.change')
+            return redirect()->route('customer.force_password.change')
                 ->with('warning', 'Demi keamanan, Anda wajib mengganti password default sebelum melanjutkan.');
         }
 

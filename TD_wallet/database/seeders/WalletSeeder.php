@@ -14,18 +14,21 @@ class WalletSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ambil semua customer
-        $customers = Customer::all();
-
-        // Ambil ID operator pertama (misal: Superadmin) untuk penanggung jawab pembuatan dompet
+        $customers = Customer::with('membership')->get();
         $operatorId = Operator::first()->id ?? 1;
 
         foreach ($customers as $customer) {
+            $tierName = $customer->membership->name ?? null;
+
+            // Generate nomor rekening SATU KALI untuk customer ini
+            $rekeningUtama = Wallet::generateNoRekening($tierName);
+
             // 1. Buatkan Wallet Tipe Uang
             Wallet::firstOrCreate([
                 'customer_id' => $customer->id,
                 'type'        => 'Uang',
             ], [
+                'no_rekening' => $rekeningUtama, // Pakai rekening utama
                 'operator_id' => $operatorId,
             ]);
 
@@ -34,6 +37,7 @@ class WalletSeeder extends Seeder
                 'customer_id' => $customer->id,
                 'type'        => 'Poin',
             ], [
+                'no_rekening' => $rekeningUtama, // Pakai rekening utama yang SAMA
                 'operator_id' => $operatorId,
             ]);
         }

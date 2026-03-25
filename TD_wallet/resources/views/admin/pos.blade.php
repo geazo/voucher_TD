@@ -20,16 +20,28 @@
 
                         <form id="manualItemForm">
                             <div class="row g-3 align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold small text-muted">Nama Layanan / Item</label>
-                                    <input type="text" id="inputItemName" class="form-control form-control-lg bg-light"
-                                        placeholder="Item Name" required autofocus>
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold small text-muted">Pilih Layanan / Item</label>
+                                    <select id="selectItem" class="form-select form-select-lg bg-light" required autofocus>
+                                        <option value="">-- Pilih Item --</option>
+                                        @foreach ($items as $item)
+                                            <option value="{{ $item->id }}" data-name="{{ $item->nama }}"
+                                                data-price="{{ $item->harga }}">
+                                                {{ $item->nama }} - Rp {{ number_format($item->harga, 0, ',', '.') }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-bold small text-muted">Harga (Rp)</label>
-                                    <input type="number" id="inputItemPrice" class="form-control form-control-lg bg-light"
-                                        placeholder="" min="1000" required>
+
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold small text-muted">Jumlah (Qty)</label>
+                                    <div class="input-group">
+                                        <input type="number" id="inputItemQty"
+                                            class="form-control form-control-lg bg-light text-center" value="1"
+                                            min="1" required>
+                                    </div>
                                 </div>
+
                                 <div class="col-md-2">
                                     <button type="submit" class="btn btn-success btn-lg w-100 fw-bold">
                                         <i class="bi bi-plus-lg"></i>
@@ -39,9 +51,9 @@
                         </form>
 
                         <div class="mt-4 p-3 bg-light rounded text-muted small">
-                            <i class="bi bi-info-circle me-1"></i> Ketik nama item dan harga secara manual, lalu tekan
-                            tombol <strong>+</strong> atau tekan <strong>Enter</strong> untuk memasukkannya ke rincian
-                            tagihan di sebelah kanan.
+                            <i class="bi bi-info-circle me-1"></i> Pilih item dari daftar layanan, tentukan jumlah (qty),
+                            lalu tekan tombol <strong>+</strong> atau <strong>Enter</strong> untuk menambahkannya ke rincian
+                            tagihan.
                         </div>
 
                     </div>
@@ -102,7 +114,6 @@
                         <input type="hidden" name="nominal_total" id="nominal_total_input">
                         <input type="hidden" name="cart_data" id="cart_data_input">
                     </form>
-
                 </div>
             </div>
         </div>
@@ -113,7 +124,7 @@
     @if (session('success_invoice'))
         @php $invoice = session('success_invoice'); @endphp
         <div class="modal fade" id="invoiceModal" tabindex="-1" data-bs-backdrop="static">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
 
                     <div class="modal-header bg-success text-white border-bottom-0 pb-3"
@@ -125,57 +136,85 @@
                             aria-label="Close"></button>
                     </div>
 
-                    <div class="modal-body p-4 bg-light">
-                        <div class="text-center mb-4">
-                            <p class="text-muted mb-1">Total Tagihan</p>
-                            <h2 class="fw-bold text-dark mb-0">Rp {{ number_format($invoice['total'], 0, ',', '.') }}</h2>
+                    <div class="modal-body p-4 bg-light" id="printArea">
+
+                        <div class="text-center mb-4 pb-3 border-bottom border-dashed"
+                            style="border-bottom: 2px dashed #dee2e6;">
+                            <h4 class="fw-bold text-dark mb-0">TAMAN DAYU</h4>
+                            <span class="badge bg-dark px-3 py-2 fs-6">{{ $invoice['invoice_number'] }}</span>
                         </div>
 
-                        <div class="bg-white p-3 rounded-3 border shadow-sm">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small">Nama Customer</span>
-                                <span class="fw-bold">{{ $invoice['customer_name'] }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small">Waktu Transaksi</span>
+                        <div class="mb-4 small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Tanggal</span>
                                 <span class="fw-bold">{{ $invoice['waktu'] }}</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted small">Nama Kasir</span>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Customer</span>
+                                <span class="fw-bold">{{ $invoice['customer_name'] }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Kasir</span>
                                 <span class="fw-bold">{{ $invoice['kasir_name'] }}</span>
                             </div>
+                        </div>
 
-                            @if (!empty($invoice['catatan']))
-                                <div class="alert alert-warning p-2 mt-2 mb-0 small text-center border-0 rounded-3">
-                                    {{ $invoice['catatan'] }}
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-muted border-bottom pb-2 mb-2">Rincian Item</h6>
+                            @foreach ($invoice['items'] as $item)
+                                <div class="d-flex justify-content-between align-items-start mb-2 small">
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ $item->item_name }}</div>
+                                        <div class="text-muted">{{ $item->qty }} x Rp
+                                            {{ number_format($item->price, 0, ',', '.') }}</div>
+                                    </div>
+                                    <div class="fw-bold text-dark text-end">
+                                        Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                    </div>
                                 </div>
-                            @endif
+                            @endforeach
+                        </div>
 
-                            <hr class="border-dashed my-3" style="border-top: 2px dashed #dee2e6;">
+                        <div class="bg-white p-3 rounded-3 border shadow-sm mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted fw-bold">TOTAL TAGIHAN</span>
+                                <span class="fw-bold fs-5 text-dark">Rp
+                                    {{ number_format($invoice['total'], 0, ',', '.') }}</span>
+                            </div>
 
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-2"></i>Uang
-                                    Terpotong</span>
-                                <span class="fw-bold">Rp {{ number_format($invoice['tagihan_uang'], 0, ',', '.') }}</span>
+                            <hr class="my-2" style="border-top: 1px solid #dee2e6;">
+
+                            <div class="d-flex justify-content-between mb-1 small">
+                                <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-1"></i>Dibayar
+                                    (Uang)</span>
+                                <span class="fw-bold text-success">Rp
+                                    {{ number_format($invoice['tagihan_uang'], 0, ',', '.') }}</span>
                             </div>
 
                             @if ($invoice['tagihan_poin'] > 0)
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-dark fw-bold"><i class="bi bi-star text-primary me-2"></i>Poin
-                                        Terpotong</span>
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-dark fw-bold"><i
+                                            class="bi bi-star-fill text-primary me-1"></i>Dibayar (Poin)</span>
                                     <span
                                         class="fw-bold text-primary">{{ number_format($invoice['tagihan_poin'], 0, ',', '.') }}
                                         Pts</span>
                                 </div>
                             @endif
                         </div>
+
+                        @if (!empty($invoice['catatan']))
+                            <div class="alert alert-warning p-2 mt-2 mb-0 small text-center border-0 rounded-3">
+                                {{ $invoice['catatan'] }}
+                            </div>
+                        @endif
+
                     </div>
 
                     <div class="modal-footer border-top-0 d-flex justify-content-between bg-light"
                         style="border-radius: 0 0 1rem 1rem;">
                         <button type="button" class="btn btn-outline-secondary fw-bold"
                             data-bs-dismiss="modal">Tutup</button>
-                        <button type="button" class="btn btn-primary fw-bold" onclick="window.print()">
+                        <button type="button" class="btn btn-primary fw-bold" onclick="printInvoice()">
                             <i class="bi bi-printer me-1"></i> Cetak Struk
                         </button>
                     </div>
@@ -184,7 +223,16 @@
         </div>
 
         <script>
-            // Script kebal JS error untuk memunculkan modal otomatis
+            // Fungsi untuk Print Area Khusus Struk
+            function printInvoice() {
+                var printContents = document.getElementById('printArea').innerHTML;
+                var originalContents = document.body.innerHTML;
+                document.body.innerHTML = printContents;
+                window.print();
+                document.body.innerHTML = originalContents;
+                location.reload(); // Refresh halaman setelah nge-print agar script JS kembali normal
+            }
+
             window.addEventListener('load', function() {
                 if (typeof bootstrap !== 'undefined') {
                     var myModalEl = document.getElementById('invoiceModal');
@@ -200,50 +248,86 @@
         let grandTotal = 0;
         let html5QrCode;
 
-        // --- LOGIKA FORM MANUAL ---
+        // --- LOGIKA FORM ITEM ---
         document.getElementById('manualItemForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Mencegah halaman me-refresh
+            e.preventDefault();
 
-            let nameInput = document.getElementById('inputItemName');
-            let priceInput = document.getElementById('inputItemPrice');
+            let select = document.getElementById('selectItem');
+            let qtyInput = document.getElementById('inputItemQty');
 
-            let name = nameInput.value.trim();
-            let price = parseInt(priceInput.value);
+            if (select.value === '') return;
 
-            if (name !== '' && price > 0) {
-                // Gunakan timestamp sebagai ID unik sementara agar item dengan nama sama tidak menumpuk otomatis
-                let uniqueId = new Date().getTime();
+            // Ambil data dari dropdown option yang sedang dipilih
+            let selectedOption = select.options[select.selectedIndex];
+            let id = parseInt(select.value);
+            let name = selectedOption.getAttribute('data-name');
+            let price = parseInt(selectedOption.getAttribute('data-price'));
+            let qty = parseInt(qtyInput.value);
 
+            // Cek apakah item sudah ada di keranjang
+            let existingItemIndex = cart.findIndex(item => item.id === id);
+
+            if (existingItemIndex !== -1) {
+                // Jika sudah ada, cukup tambahkan Qty nya saja
+                cart[existingItemIndex].qty += qty;
+                cart[existingItemIndex].subtotal = cart[existingItemIndex].qty * cart[existingItemIndex].price;
+            } else {
+                // Jika belum ada, masukkan sebagai item baru
                 cart.push({
-                    id: uniqueId,
+                    id: id,
                     name: name,
                     price: price,
-                    qty: 1,
-                    subtotal: price
+                    qty: qty,
+                    subtotal: price * qty
                 });
-                renderCart();
-
-                // Kosongkan form dan kembalikan kursor ke input nama
-                nameInput.value = '';
-                priceInput.value = '';
-                nameInput.focus();
             }
+
+            renderCart();
+
+            // Reset Input
+            select.value = '';
+            qtyInput.value = '1';
+            select.focus();
         });
 
-        // --- LOGIKA KERANJANG ---
+        // --- FUNGSI TAMBAH/KURANG QTY DI KERANJANG ---
+        function increaseQty(id) {
+            let item = cart.find(i => i.id === id);
+            if (item) {
+                item.qty += 1;
+                item.subtotal = item.qty * item.price;
+                renderCart();
+            }
+        }
+
+        function decreaseQty(id) {
+            let item = cart.find(i => i.id === id);
+            if (item) {
+                if (item.qty > 1) {
+                    item.qty -= 1;
+                    item.subtotal = item.qty * item.price;
+                    renderCart();
+                } else {
+                    // Jika qty = 1 dan dikurangi lagi, hapus item dari keranjang
+                    removeItem(id);
+                }
+            }
+        }
+
+        // --- FUNGSI HAPUS ITEM ---
         function removeItem(id) {
             cart = cart.filter(item => item.id !== id);
             renderCart();
         }
 
+        // --- LOGIKA RENDER KERANJANG ---
         function renderCart() {
-            // Targetkan div list yang baru, bukan container utamanya
             const cartList = document.getElementById('cartItemsList');
             const emptyMsg = document.getElementById('emptyCartMsg');
             const btnPay = document.getElementById('btnPay');
 
             grandTotal = 0;
-            cartList.innerHTML = ''; // Hanya bersihkan daftar item, pesan kosong tetap aman
+            cartList.innerHTML = '';
 
             if (cart.length === 0) {
                 emptyMsg.style.display = 'block';
@@ -254,15 +338,25 @@
 
                 cart.forEach(item => {
                     grandTotal += item.subtotal;
+
+                    // HTML Rincian Item Diperbarui (Tanpa tombol + / -)
                     cartList.innerHTML += `
-                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-2">
                         <div>
-                            <div class="fw-bold text-dark">${item.name}</div>
+                            <div class="fw-bold text-dark mb-1">
+                                ${item.name}
+                                <span class="badge bg-secondary ms-2">${item.qty} x</span>
+                            </div>
+                            <div class="text-muted small">@ Rp ${item.price.toLocaleString('id-ID')}</div>
                         </div>
+
                         <div class="d-flex align-items-center gap-3">
-                            <span class="fw-bold">Rp ${item.subtotal.toLocaleString('id-ID')}</span>
-                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 border-0" onclick="removeItem(${item.id})">
-                                <i class="bi bi-trash"></i>
+                            <div class="fw-bold text-end" style="width: 100px;">
+                                Rp ${item.subtotal.toLocaleString('id-ID')}
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeItem(${item.id})">
+                                <i class="bi bi-trash fs-5"></i>
                             </button>
                         </div>
                     </div>
