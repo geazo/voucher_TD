@@ -14,8 +14,8 @@ class AdminExtensionController extends Controller
     // Menampilkan daftar request
     public function index()
     {
-        $extensions = BalanceExtension::with(['customer', 'transaction.wallet'])
-            ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')") // Pending di atas
+        $extensions = BalanceExtension::with(['customer.wallets', 'transaction.wallet'])
+            ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -25,9 +25,7 @@ class AdminExtensionController extends Controller
     // Memproses Approval / Rejection
     public function process(Request $request, $id)
     {
-        $request->validate([
-            'action' => 'required|in:approve,reject'
-        ]);
+        $request->validate(['action' => 'required|in:approve,reject']);
 
         $extension = BalanceExtension::with('transaction')->findOrFail($id);
 
@@ -40,29 +38,59 @@ class AdminExtensionController extends Controller
                 $operatorId = Auth::id();
 
                 if ($request->action === 'approve') {
-                    // 1. Ubah status request
                     $extension->update([
-                        'status' => 'approved',
+                        'status'      => 'approved',
                         'operator_id' => $operatorId
                     ]);
 
-                    // 2. Tambah masa aktif expired_at di tabel transaksi
                     $tx = $extension->transaction;
-                    $newExpiredDate = Carbon::parse($tx->expired_at)->addDays($extension->tambahan_hari);
 
-                    $tx->update([
-                        'expired_at' => $newExpiredDate
-                    ]);
+                    // Cari transaksi yang berkaitan (Uang & Poin)
+                    $relatedTransactions = \App\Models\Transaction::whereHas('wallet', function ($q) use ($tx) {
+                        $q->where('customer_id', $tx->wallet->customer_id);
+                    })
+                        ->where('created_at', $tx->created_at)
+                        ->where('type', 'kredit')
+                        ->get();
+
+                    // LOGIKA BERCABANG: PEMULIHAN vs PERPANJANGAN
+                    if ($extension->is_recovery) {
+                        // 1. JIKA PEMULIHAN (Suntik Saldo Baru)
+                        $masaBerlakuBaru = now()->addDays($extension->tambahan_hari);
+
+                        foreach ($relatedTransactions as $rt) {
+                            $nominalSuntikan = ($rt->wallet->type == 'Uang') ? $extension->nominal_uang : $extension->nominal_poin;
+
+                            // Hanya buat transaksi jika ada nominal yang dipulihkan
+                            if ($nominalSuntikan > 0) {
+                                \App\Models\Transaction::create([
+                                    'wallet_id'   => $rt->wallet_id,
+                                    'type'        => 'kredit',
+                                    'nominal'     => $nominalSuntikan,
+                                    'sisa_saldo'  => $nominalSuntikan,
+                                    'expired_at'  => $masaBerlakuBaru,
+                                    'operator_id' => $operatorId,
+                                    'keterangan'  => 'Pemulihan Saldo (Ref: TX-' . $rt->id . ')'
+                                ]);
+                            }
+                        }
+                    } else {
+                        // 2. JIKA PERPANJANGAN BIASA (Update Tanggal Saja)
+                        foreach ($relatedTransactions as $rt) {
+                            $rt->update([
+                                'expired_at' => \Carbon\Carbon::parse($rt->expired_at)->addDays($extension->tambahan_hari)
+                            ]);
+                        }
+                    }
                 } else {
-                    // Jika ditolak, cukup ubah status
                     $extension->update([
-                        'status' => 'rejected',
+                        'status'      => 'rejected',
                         'operator_id' => $operatorId
                     ]);
                 }
             });
 
-            $pesan = $request->action === 'approve' ? 'Perpanjangan saldo berhasil disetujui!' : 'Pengajuan perpanjangan ditolak.';
+            $pesan = $request->action === 'approve' ? 'Saldo berhasil diproses!' : 'Pengajuan ditolak.';
             return back()->with('success', $pesan);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal memproses request: ' . $e->getMessage());
@@ -70,20 +98,52 @@ class AdminExtensionController extends Controller
     }
 
     // ==========================================
-    // AREA ADMIN (FRONT DESK) - MEMBUAT REQUEST
+    // AREA ADMIN - MEMBUAT REQUEST
     // ==========================================
 
-    // Menampilkan form pengajuan (Misal dipanggil dari halaman Detail Customer)
+    // Menampilkan form pengajuan dari show customer
     public function createRequest(Request $request)
     {
-        // Jaring Pengaman: Jika tidak ada ID yang dikirim
         if (!$request->has('transaction_id') || $request->transaction_id == null) {
-            return redirect()->route('dashboard')->with('error', 'Silakan pilih riwayat transaksi customer terlebih dahulu untuk mengajukan perpanjangan.');
+            return redirect()->route('dashboard')->with('error', 'Silakan pilih riwayat transaksi customer terlebih dahulu.');
         }
 
-        $transaction =  Transaction::with('wallet.customer')->findOrFail($request->transaction_id);
+        $transaction = Transaction::with('wallet.customer')->findOrFail($request->transaction_id);
 
-        return view('admin.extension_create', compact('transaction'));
+        $relatedTransactions = Transaction::with('wallet')
+            ->whereHas('wallet', function ($q) use ($transaction) {
+                $q->where('customer_id', $transaction->wallet->customer_id);
+            })
+            ->where('created_at', $transaction->created_at)
+            ->where('type', 'kredit')
+            ->get();
+
+        $saldoUang = 0;
+        $saldoPoin = 0;
+        $isRecovery = false;
+
+        foreach ($relatedTransactions as $rt) {
+            $nominal = $rt->sisa_saldo;
+
+            // JIKA SALDO 0, KEMUNGKINAN SUDAH EXPIRED. KITA CARI NOMINALNYA DARI TRANSAKSI ADJUSTMENT
+            if ($nominal == 0) {
+                $isRecovery = true;
+                // Cari transaksi pemotongan (adjustment) sistem setelah tanggal expired
+                $adjustment = Transaction::where('wallet_id', $rt->wallet_id)
+                    ->where('type', 'adjustment')
+                    ->whereDate('created_at', '>=', \Carbon\Carbon::parse($rt->expired_at)->toDateString())
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                // Jika ketemu, itulah nominal yang hangus. Jika tidak, berarti memang habis dipakai belanja (0)
+                $nominal = $adjustment ? $adjustment->nominal : 0;
+            }
+
+            if ($rt->wallet->type == 'Uang') $saldoUang = $nominal;
+            if ($rt->wallet->type == 'Poin') $saldoPoin = $nominal;
+        }
+
+        return view('admin.extension_create', compact('transaction', 'saldoUang', 'saldoPoin', 'isRecovery'));
     }
 
     // Menyimpan pengajuan ke database
@@ -93,11 +153,13 @@ class AdminExtensionController extends Controller
             'transaction_id' => 'required|exists:transactions,id',
             'alasan'         => 'required|string|min:10',
             'tambahan_hari'  => 'required|integer|min:1|max:365',
+            'is_recovery'    => 'required|boolean',
+            'nominal_uang'   => 'required|numeric|min:0',
+            'nominal_poin'   => 'required|numeric|min:0',
         ]);
 
         $transaction = Transaction::with('wallet')->findOrFail($request->transaction_id);
 
-        // Cek apakah sudah ada request yang masih pending untuk transaksi ini
         $existingRequest = BalanceExtension::where('transaction_id', $transaction->id)
             ->where('status', 'pending')->first();
 
@@ -110,10 +172,13 @@ class AdminExtensionController extends Controller
             'transaction_id' => $transaction->id,
             'alasan'         => $request->alasan,
             'tambahan_hari'  => $request->tambahan_hari,
-            'status'         => 'pending' // Default selalu pending menunggu Super Admin
+            'is_recovery'    => $request->is_recovery,
+            'nominal_uang'   => $request->nominal_uang,
+            'nominal_poin'   => $request->nominal_poin,
+            'status'         => 'pending'
         ]);
 
         return redirect()->route('customers.show', $transaction->wallet->customer_id)
-            ->with('success', 'Pengajuan perpanjangan saldo berhasil dikirim ke Super Admin.');
+            ->with('success', 'Pengajuan berhasil dikirim ke Super Admin.');
     }
 }

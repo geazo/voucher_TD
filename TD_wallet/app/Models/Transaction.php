@@ -9,13 +9,13 @@ class Transaction extends Model
 {
     protected $fillable = [
         'wallet_id',
-        'order_id',   // Pastikan order_id juga masuk fillable
+        'order_id',
         'nominal',
         'sisa_saldo',
         'expired_at',
         'type',
         'operator_id',
-        'keterangan'  // Pastikan keterangan masuk fillable
+        'keterangan'
     ];
 
     protected function casts(): array

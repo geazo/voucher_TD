@@ -10,13 +10,19 @@ use Illuminate\Support\Facades\Hash;
 
 class CustomerDashboardController extends Controller
 {
+    // =================================
+    // FUNGSI UNTUK DASHBOARD & TOPUP INFO
+    // =================================
     public function index()
     {
         $customer = Auth::guard('customer')->user();
         $customer->load(['wallets']);
 
-        $saldoUang = $customer->wallets->where('type', 'Uang')->first()->balance ?? 0;
-        $saldoPoin = $customer->wallets->where('type', 'Poin')->first()->balance ?? 0;
+        $dompetUang = $customer->wallets->where('type', 'Uang')->first();
+        $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
+
+        $saldoUang = $dompetUang ? $dompetUang->balance : 0;
+        $saldoPoin = $dompetPoin ? $dompetPoin->balance : 0;
 
         // Tambahkan MAX(order_id) dan MAX(keterangan) agar tidak error saat GROUP BY
         $transactions = Transaction::join('wallets', 'transactions.wallet_id', '=', 'wallets.id')
@@ -43,8 +49,34 @@ class CustomerDashboardController extends Controller
 
         return view('customer.dashboard', compact('customer', 'saldoUang', 'saldoPoin', 'transactions', 'activeBalances'));
     }
+    public function saldoInfo()
+    {
+        // 1. Ambil data customer yang sedang login
+        $customer = Auth::guard('customer')->user()->load(['membership', 'wallets']);
 
-    // Fungsi baru untuk merekonstruksi struk dari tabel database
+        $dompetUang = $customer->wallets->where('type', 'Uang')->first();
+        $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
+
+        // 2. Ambil SEMUA transaksi topup (kredit) yang saldonya MASIH ADA (> 0)
+        // Urutkan dari yang paling cepat kedaluwarsa (asc)
+        $activeTopups = \App\Models\Transaction::with('wallet')
+            ->whereIn('wallet_id', $customer->wallets->pluck('id'))
+            ->where('type', 'kredit')
+            ->where('sisa_saldo', '>', 0)
+            ->orderBy('expired_at', 'asc')
+            ->get();
+
+        // 3. Kelompokkan berdasarkan waktu Topup agar Uang & Poin menyatu di View
+        $groupedTopups = $activeTopups->groupBy(function ($item) {
+            return $item->created_at->format('Y-m-d H:i:s');
+        });
+
+        return view('customer.saldo', compact('customer', 'dompetUang', 'dompetPoin', 'groupedTopups'));
+    }
+
+    // =================================
+    // FUNGSI UNTUK FITUR INVOICE
+    // =================================
     public function showInvoiceDetail($id)
     {
         $customer = Auth::guard('customer')->user();
@@ -116,7 +148,9 @@ class CustomerDashboardController extends Controller
 
         return view('customer.invoice', compact('invoiceData'));
     }
-
+    // =================================
+    // FUNGSI UNTUK FITUR PROFIL & GANTI PASSWORD
+    // =================================
     public function profile()
     {
         $customer = Auth::guard('customer')->user();

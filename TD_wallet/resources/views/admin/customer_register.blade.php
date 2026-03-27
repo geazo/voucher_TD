@@ -42,7 +42,7 @@
                                 <option value="">-- Pilih Gender --</option>
                                 <option value="Laki-laki">Laki-laki</option>
                                 <option value="Perempuan">Perempuan</option>
-                                <option value="lainnya">Lainnya</option>
+                                <option value="Lainnya">Lainnya</option>
                             </select>
                         </div>
 

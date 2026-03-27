@@ -56,7 +56,7 @@ class AdminCustomerController extends Controller
             'notelp' => 'required|string|unique:customers,notelp|max:15',
             'email'  => 'required|email|unique:customers,email',
             'kota_domisili' => 'required|string|max:255',
-            'gender' => 'required|in:Laki-laki,Perempuan',
+            'gender' => 'required|in:Laki-laki,Perempuan,Lainnya',
         ]);
 
         try {
@@ -101,25 +101,32 @@ class AdminCustomerController extends Controller
     }
     public function show($id)
     {
-        // 1. Ambil data customer
-        $customer = \App\Models\Customer::with('wallets')->findOrFail($id);
-
-        // 2. Pisahkan dompet untuk ditampilkan di card
+        $customer = Customer::with('wallets')->findOrFail($id);
         $dompetUang = $customer->wallets->where('type', 'Uang')->first();
         $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
 
-        // 3. Ambil riwayat transaksi KHUSUS untuk customer ini
-        $transactions = Transaction::whereHas('wallet', function($q) use ($id) {
-                $q->where('customer_id', $id);
-            })
-            ->with('operator') // Untuk mengambil nama kasir/admin
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        // GABUNGKAN TRANSAKSI YANG TERJADI DI DETIK YANG SAMA
+        $transactions = Transaction::join('wallets', 'transactions.wallet_id', '=', 'wallets.id')
+            ->leftJoin('operators', 'transactions.operator_id', '=', 'operators.id')
+            ->where('wallets.customer_id', $id)
+            ->selectRaw('
+                transactions.created_at,
+                transactions.type,
+                SUM(transactions.nominal) as nominal,
+                SUM(transactions.sisa_saldo) as sisa_saldo,
+                MAX(transactions.expired_at) as expired_at,
+                MIN(transactions.id) as id,
+                MAX(transactions.keterangan) as keterangan,
+                MAX(operators.nama) as operator_nama
+            ')
+            ->groupBy('transactions.created_at', 'transactions.type')
+            ->orderBy('transactions.created_at', 'desc')
+            ->paginate(15);
 
         return view('admin.customers_show', compact('customer', 'dompetUang', 'dompetPoin', 'transactions'));
     }
 
-    // Proses Update (Superadmin)
+    // Proses Edit Master Customer
     public function update(Request $request, Customer $customer)
     {
         $request->validate([
@@ -129,14 +136,14 @@ class AdminCustomerController extends Controller
             'membership_id' => 'nullable|exists:memberships,id',
             'f_aktif' => 'required|boolean',
             'kota_domisili' => 'required|string|max:255',
-            'gender' => 'required|in:Laki-laki,Perempuan',
+            'gender' => 'required|in:Laki-laki,Perempuan,Lainnya',
         ]);
 
         $customer->update($request->all());
         return redirect()->route('customers.index')->with('success', 'Data customer berhasil diperbarui.');
     }
-    // Proses Delete (Superadmin)
-    // Proses Ubah Status Aktif/Non-Aktif (Superadmin)
+
+    // on off f_aktif customer Master Customer
     public function destroy(Customer $customer)
     {
         // Toggle status: Jika true jadi false, jika false jadi true

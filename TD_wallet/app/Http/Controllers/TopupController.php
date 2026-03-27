@@ -61,8 +61,8 @@ class TopupController extends Controller
                 $walletUang = $customer->wallets->where('type', 'Uang')->first();
                 $walletPoin = $customer->wallets->where('type', 'Poin')->first();
 
-                // Masa berlaku sampai 31 Desember tahun ini (Akhir Tahun)
-                $masaBerlaku = now()->endOfYear();
+                // Masa berlaku 1 tahun dari sekarang
+                $masaBerlaku = now()->addYear();
 
                 // 3. Masukkan Saldo Uang Utama (KREDIT)
                 Transaction::create([
@@ -92,15 +92,10 @@ class TopupController extends Controller
                     $customer->update([
                         'membership_id' => $requestedPackage->id
                     ]);
-                    // B. Tentukan Prefix (2 Huruf) dari paket yang baru dibeli
-                    $newPrefix = match (strtolower($requestedPackage->name)) {
-                        'reguler'  => 'RG',
-                        'silver'   => 'SL',
-                        'gold'     => 'GL',
-                        'platinum' => 'PL',
-                        default    => 'CS',
-                    };
 
+                    // B. Tentukan Prefix (2 Huruf) dari paket yang baru dibeli
+                    $newPrefix = $requestedPackage->prefix;
+                    
                     // C. Update nomor rekening pada SEMUA dompet milik customer ini (Uang & Poin)
                     foreach ($customer->wallets as $dompet) {
                         // Ambil 8 digit terakhir dari nomor rekening lama

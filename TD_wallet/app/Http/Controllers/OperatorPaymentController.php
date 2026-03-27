@@ -45,13 +45,13 @@ class OperatorPaymentController extends Controller
             $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
 
             // 2. CEK SALDO AKTIF (Abaikan yang sisa_saldo 0 dan yang sudah expired)
-            $saldoUang = Transaction::where('wallet_id', $dompetUang->id)
+            $saldoUang = \App\Models\Transaction::where('wallet_id', $dompetUang->id)
                 ->where('type', 'kredit')
                 ->where('sisa_saldo', '>', 0)
                 ->where('expired_at', '>=', now()->toDateString())
                 ->sum('sisa_saldo');
 
-            $saldoPoin = Transaction::where('wallet_id', $dompetPoin->id)
+            $saldoPoin = \App\Models\Transaction::where('wallet_id', $dompetPoin->id)
                 ->where('type', 'kredit')
                 ->where('sisa_saldo', '>', 0)
                 ->where('expired_at', '>=', now()->toDateString())
@@ -90,7 +90,6 @@ class OperatorPaymentController extends Controller
 
                 // 1. Buat Header Nota (Tabel orders)
                 $order = \App\Models\Order::create([
-                    // Membuat nomor invoice unik: INV-TahunBulanTanggal-Random
                     'invoice_number' => 'INV-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(5)),
                     'customer_id'    => $customer->id,
                     'operator_id'    => $operatorId,
@@ -99,30 +98,23 @@ class OperatorPaymentController extends Controller
                     'bayar_poin'     => $tagihanPoin,
                 ]);
 
-                // 2. Decode data keranjang dari JSON ke bentuk Array PHP
+                // 2. Decode data keranjang
                 $cartData = json_decode($request->cart_data, true) ?? [];
 
                 // =======================================================================
                 // OPSI 1: MERGE ITEM (GABUNGKAN ITEM YANG SAMA)
-                // Jika customer beli "Driving 1 Jam" dua kali di waktu berbeda sebelum bayar,
-                // sistem akan merekapnya menjadi 1 baris "Driving 1 Jam" dengan Qty 2.
                 // =======================================================================
-
                 $mergedCart = [];
                 foreach ($cartData as $item) {
                     $itemId = $item['id'];
-
                     if (isset($mergedCart[$itemId])) {
-                        // Jika item sudah ada di array rekap, tambahkan Qty dan Subtotalnya
                         $mergedCart[$itemId]['qty'] += $item['qty'];
                         $mergedCart[$itemId]['subtotal'] += $item['subtotal'];
                     } else {
-                        // Jika belum ada, masukkan sebagai item baru
                         $mergedCart[$itemId] = $item;
                     }
                 }
 
-                // Simpan hasil rekap ke database
                 foreach ($mergedCart as $item) {
                     \App\Models\OrderDetail::create([
                         'order_id'   => $order->id,
@@ -134,37 +126,21 @@ class OperatorPaymentController extends Controller
                     ]);
                 }
 
-
                 // =======================================================================
-                // OPSI 2: SEPARATE ITEM (BIARKAN TERPISAH APA ADANYA)
-                // (Untuk menggunakan Opsi 2, Comment semua kode Opsi 1 di atas, lalu Uncomment kode di bawah ini)
-                // Sistem akan memasukkan item baris demi baris persis seperti urutan masuknya.
+                // 5A. FUNGSI HELPER UNTUK POTONG SALDO (DIUBAH MENJADI FEFO)
                 // =======================================================================
-
-                /*
-                foreach ($cartData as $item) {
-                    \App\Models\OrderDetail::create([
-                        'order_id'   => $order->id,
-                        'item_id'    => $item['id'],
-                        'item_name'  => $item['name'],
-                        'price'      => $item['price'],
-                        'qty'        => $item['qty'],
-                        'subtotal'   => $item['subtotal']
-                    ]);
-                }
-                */
-
-                // 5A. FUNGSI HELPER UNTUK POTONG SALDO (FIFO)
                 $potongSaldoFifo = function ($walletId, $jumlahPotong) {
-                    $kreditTersedia = Transaction::where('wallet_id', $walletId)
+                    $kreditTersedia = \App\Models\Transaction::where('wallet_id', $walletId)
                         ->where('type', 'kredit')
                         ->where('sisa_saldo', '>', 0)
                         ->where('expired_at', '>=', now()->toDateString())
-                        ->orderBy('created_at', 'asc') // Paling lama dipotong duluan
-                        ->lockForUpdate() // Cegah race condition ganda
+                        ->orderBy('expired_at', 'asc') // PERUBAHAN KRUSIAL: FEFO (Yang mau hangus dipakai duluan)
+                        ->orderBy('created_at', 'asc') // Fallback jika tanggal hangusnya persis sama
+                        ->lockForUpdate() // Cegah race condition
                         ->get();
 
                     $sisaTagihan = $jumlahPotong;
+
                     foreach ($kreditTersedia as $kredit) {
                         if ($sisaTagihan <= 0) break;
 
@@ -178,12 +154,17 @@ class OperatorPaymentController extends Controller
                             $kredit->save();
                         }
                     }
+
+                    // Lapis Keamanan: Jika loop selesai tapi tagihan masih sisa, batalkan seluruh transaksi!
+                    if ($sisaTagihan > 0) {
+                        throw new \Exception("Gagal memotong saldo secara penuh. Terdapat selisih data.");
+                    }
                 };
 
                 // Potong Sisa Saldo Poin & Buat Riwayat Debit
                 if ($tagihanPoin > 0) {
                     $potongSaldoFifo($dompetPoin->id, $tagihanPoin);
-                    Transaction::create([
+                    \App\Models\Transaction::create([
                         'wallet_id'   => $dompetPoin->id,
                         'order_id'    => $order->id,
                         'type'        => 'debit',
@@ -195,26 +176,18 @@ class OperatorPaymentController extends Controller
 
                 // Potong Sisa Saldo Uang & Buat Riwayat Debit
                 $potongSaldoFifo($dompetUang->id, $tagihanUang);
-                Transaction::create([
+                \App\Models\Transaction::create([
                     'wallet_id'   => $dompetUang->id,
                     'order_id'    => $order->id,
                     'type'        => 'debit',
                     'nominal'     => $tagihanUang,
                     'operator_id' => $operatorId,
-                    'keterangan'  => 'Pembayaran - ' . $order->invoice_number // PASTIKAN BARIS INI ADA
+                    'keterangan'  => 'Pembayaran - ' . $order->invoice_number
                 ]);
 
-                // // --- UPDATE LAYAR CUSTOMER ---
-                // Cache::put('qr_status_' . $uniqueToken, 'success', now()->addMinutes(1));
-                // Cache::put('qr_invoice_' . $uniqueToken, [
-                //     'total'        => $totalTagihan,
-                //     'tagihan_uang' => $tagihanUang,
-                //     'tagihan_poin' => $tagihanPoin,
-                //     'waktu'        => now()->format('d M Y, H:i')
-                // ], now()->addMinutes(5));
                 $order->load('details');
 
-                // 2. Simpan format BARU ke dalam Cache untuk layar Customer
+                // --- UPDATE LAYAR CUSTOMER ---
                 Cache::put('qr_status_' . $uniqueToken, 'success', now()->addMinutes(1));
                 Cache::put('qr_invoice_' . $uniqueToken, [
                     'invoice_number' => $order->invoice_number,
@@ -222,12 +195,13 @@ class OperatorPaymentController extends Controller
                     'tagihan_uang'   => $order->bayar_uang,
                     'tagihan_poin'   => $order->bayar_poin,
                     'waktu'          => $order->created_at->format('d M Y, H:i'),
-                    'items'          => $order->details,           // Key 'items' ditambahkan
+                    'items'          => $order->details,
                     'kasir_name'     => Auth::user()->nama ?? 'Kasir',
                     'catatan'        => $pesanNotifikasi
                 ], now()->addMinutes(5));
 
                 DB::commit();
+
                 // --- UPDATE LAYAR KASIR ---
                 $invoiceData = [
                     'invoice_number' => $order->invoice_number,
@@ -238,7 +212,7 @@ class OperatorPaymentController extends Controller
                     'waktu'         => $order->created_at->format('d M Y, H:i'),
                     'kasir_name'    => Auth::user()->nama ?? 'Kasir',
                     'catatan'       => $pesanNotifikasi,
-                    'items'         => $order->details // Mengirim rincian barang ke View
+                    'items'         => $order->details
                 ];
 
                 return back()->with('success_invoice', $invoiceData);
@@ -246,7 +220,7 @@ class OperatorPaymentController extends Controller
                 DB::rollBack();
                 return back()->with('error', 'Gagal mencatat transaksi ke database: ' . $e->getMessage());
             }
-        } catch (DecryptException $e) {
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
             return back()->with('error', 'Format QR Code tidak dikenali. Pastikan Anda HANYA men-scan QR dari HP Customer aplikasi ini.');
         } catch (\Throwable $e) {
             return back()->with('error', 'Sistem mendeteksi masalah: ' . $e->getMessage() . ' di baris ' . $e->getLine());

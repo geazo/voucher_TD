@@ -59,23 +59,21 @@
                                 </td>
                                 <td>
                                     @php
-                                        // 1. Ambil nama membership, jika kosong (null) jadikan 'Customer'
-                                        $tierName = $c->membership->name ?? 'Customer';
-                                        $tierLower = strtolower($tierName);
+                                        $membership = $c->membership;
 
-                                        // 2. Tentukan class warna berdasarkan tier yang sebenarnya
-                                        $badgeClass = match ($tierLower) {
-                                            'reguler' => 'bg-info text-dark',
-                                            'silver' => 'bg-secondary text-white',
-                                            'gold' => 'bg-warning text-dark',
-                                            'platinum' => 'bg-dark text-white',
-                                            default
-                                                => 'bg-white text-dark border border-dark', // Tampilan khusus 'Customer'
-                                        };
+                                        // Logika Fallback: Jika null, tampilkan 'Customer'
+                                        $tierName = $membership ? $membership->name : 'Customer';
+
+                                        // Styling: Jika null, gunakan style border standar. Jika ada, gunakan gradien database.
+                                        $textColor = $membership ? $membership->text_color : 'text-muted';
+                                        $bgStyle = $membership
+                                            ? "background: linear-gradient(135deg, {$membership->color_start} 0%, {$membership->color_end} 100%); border: none;"
+                                            : 'background-color: #ffffff; border: 1px solid #dee2e6;';
                                     @endphp
 
-                                    <span class="badge {{ $badgeClass }}">
-                                        {{ ucfirst($tierName) }}
+                                    <span class="badge {{ $textColor }} shadow-sm px-2 py-1"
+                                        style="{{ $bgStyle }} letter-spacing: 0.5px; font-size: 0.75rem;">
+                                        {{ strtoupper($tierName) }}
                                     </span>
                                 </td>
                                 <td class="text-success fw-bold">

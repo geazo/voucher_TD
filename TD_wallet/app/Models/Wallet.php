@@ -41,9 +41,11 @@ class Wallet extends Model
         return Attribute::make(
             get: function () {
                 $kredit = $this->transactions()->where('type', 'kredit')->sum('nominal');
-                $debit  = $this->transactions()->where('type', 'debit')->sum('nominal');
 
-                return $kredit - $debit;
+                // Gunakan whereIn untuk menggabungkan debit dan adjustment sebagai pengurang
+                $pengeluaran = $this->transactions()->whereIn('type', ['debit', 'adjustment'])->sum('nominal');
+
+                return $kredit - $pengeluaran;
             }
         );
     }
@@ -53,19 +55,13 @@ class Wallet extends Model
      */
     public static function generateNoRekening($tierName = null)
     {
-        $prefix = match (strtolower($tierName)) {
-            'reguler'  => 'RG',
-            'silver'   => 'SL',
-            'gold'     => 'GL',
-            'platinum' => 'PL',
-            default    => 'CS',
-        };
+        $prefix = strtoupper($prefix ?? 'CS');
 
         $monthYear = date('my');
 
         $latestWallet = self::where(DB::raw('SUBSTRING(no_rekening, 3, 4)'), $monthYear)
-                            ->orderBy(DB::raw('CAST(SUBSTRING(no_rekening, 7, 4) AS UNSIGNED)'), 'desc')
-                            ->first();
+            ->orderBy(DB::raw('CAST(SUBSTRING(no_rekening, 7, 4) AS UNSIGNED)'), 'desc')
+            ->first();
 
         if ($latestWallet) {
             $lastSequence = (int) substr($latestWallet->no_rekening, 6, 4);

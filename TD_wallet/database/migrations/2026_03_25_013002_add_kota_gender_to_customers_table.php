@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::table('customers', function (Blueprint $table) {
             // Menambahkan kolom kota_domisili dan gender (nullable agar tidak error pada data lama)
             $table->string('kota_domisili')->nullable()->after('email');
-            $table->enum('gender', ['Laki-laki', 'Perempuan','lainnya'])->nullable()->after('kota_domisili');
+            $table->enum('gender', ['Laki-laki', 'Perempuan','Lainnya'])->nullable()->after('kota_domisili');
         });
     }
 

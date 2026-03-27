@@ -16,7 +16,9 @@ use App\Mail\ResetPasswordMail;
 
 class CustomerController extends Controller
 {
-    // Tampilkan Halaman Login Customer
+    // =================================
+    // FUNGSI UNTUK lOGIN LOGOUT
+    // =================================
     public function showLogin()
     {
         return view('customer.login');
@@ -75,7 +77,10 @@ class CustomerController extends Controller
 
         return redirect()->route('customer.login');
     }
-    // Tampilkan halaman paksa ganti password
+
+    // ========================================================
+    // FUNGSI UNTUK FITUR GANTI PASSWORD PAKSA (Untuk akun baru)
+    // ========================================================
     public function showForceChangePassword()
     {
         return view('customer.changepassword');
@@ -106,6 +111,9 @@ class CustomerController extends Controller
         return redirect()->route('customer.dashboard')->with('success', 'Password Anda berhasil diperbarui! Selamat datang.');
     }
 
+    // =================================
+    // FUNGSI UNTUK FITUR LUPA PASSWORD
+    // =================================
     public function showForgotPasswordForm()
     {
         return view('customer.forgot-password'); // Sesuaikan dengan nama file/folder view Anda
@@ -174,4 +182,6 @@ class CustomerController extends Controller
 
         return redirect()->route('customer.login')->with('success', 'Password berhasil diubah! Silakan login dengan password baru Anda.');
     }
+
+
 }

@@ -12,7 +12,10 @@ class BalanceExtension extends Model
         'alasan',
         'tambahan_hari',
         'status',
-        'operator_id'
+        'operator_id',
+        'is_recovery',
+        'nominal_uang',
+        'nominal_poin'
     ];
 
     public function customer()

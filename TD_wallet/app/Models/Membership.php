@@ -9,9 +9,13 @@ class Membership extends Model
 {
     protected $fillable = [
         'name',
-        'harga', // Tambahkan ini
+        'harga',
+        'prefix',
         'bonus_topup',
         'diskon_belanja',
+        'color_start',
+        'color_end',
+        'text_color'
     ];
 
     protected function casts(): array
