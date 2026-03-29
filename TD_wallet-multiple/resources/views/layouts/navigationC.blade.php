@@ -17,19 +17,7 @@
 
         <div class="collapse navbar-collapse" id="customerNav">
             @if ($user)
-                @php
-                    $m = $user->membership;
 
-                    // Logika Dinamis
-                    $tierName  = $m ? $m->name : 'Customer';
-                    $textColor = $m ? $m->text_color : 'text-muted';
-                    $iconClass = $m ? 'bi-star-fill' : 'bi-person-fill';
-
-                    // Style Badge: Gradien jika member, Border abu-abu jika Customer biasa
-                    $badgeStyle = $m
-                        ? "background: linear-gradient(135deg, {$m->color_start} 0%, {$m->color_end} 100%); border: none;"
-                        : "background-color: #ffffff; border: 1px solid #dee2e6;";
-                @endphp
 
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 mt-3 mt-lg-0">
                     <li class="nav-item">
@@ -41,13 +29,6 @@
                 </ul>
 
                 <ul class="navbar-nav ms-auto align-items-lg-center">
-
-                    <li class="nav-item me-3 d-none d-lg-block">
-                        <span class="badge {{ $textColor }} rounded-pill px-3 py-2 shadow-sm" style="{{ $badgeStyle }}">
-                            <i class="bi {{ $iconClass }} me-1"></i> {{ strtoupper($tierName) }}
-                        </span>
-                    </li>
-
                     <li class="nav-item dropdown d-none d-lg-block">
                         <a class="nav-link dropdown-toggle fw-semibold text-dark" href="#" role="button"
                             data-bs-toggle="dropdown">
@@ -71,9 +52,7 @@
                         <a class="nav-link d-flex align-items-center justify-content-between {{ request()->routeIs('customer.profile') ? 'text-success fw-bold' : 'text-dark fw-bold' }}"
                             href="{{ route('customer.profile') }}">
                             <span>{{ $user->nama }}</span>
-                            <span class="badge {{ $textColor }} rounded-pill px-2 py-1 shadow-sm" style="{{ $badgeStyle }} font-size: 0.7rem;">
-                                {{ strtoupper($tierName) }}
-                            </span>
+                            <i class="bi bi-person"></i>
                         </a>
                     </li>
 

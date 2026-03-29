@@ -26,26 +26,13 @@
                             <small class="text-muted d-block">Email</small>
                             <span class="fw-semibold">{{ $customer->email ?? 'Belum ditambahkan' }}</span>
                         </div>
-                        <div class="mb-0">
-                            @php
-                                $m = $customer->membership;
-
-                                // Logika Fallback: Jika null tampilkan 'Customer'
-                                $tierName = $m ? $m->name : 'Customer';
-                                $textColor = $m ? $m->text_color : 'text-muted';
-
-                                // Style Badge: Gradien Mewah untuk Member, Putih Clean untuk Customer biasa
-                                $badgeStyle = $m
-                                    ? "background: linear-gradient(135deg, {$m->color_start} 0%, {$m->color_end} 100%); border: none;"
-                                    : 'background-color: #ffffff; border: 1px solid #dee2e6;';
-                            @endphp
-
-                            <small class="text-muted d-block mb-1">Status Keanggotaan</small>
-                            <span class="badge {{ $textColor }} shadow-sm px-3 py-2"
-                                style="{{ $badgeStyle }} letter-spacing: 0.5px; font-size: 0.85rem; border-radius: 8px;">
-                                <i class="bi {{ $m ? 'bi-star-fill' : 'bi-person-badge' }} me-1"></i>
-                                {{ strtoupper($tierName) }}
-                            </span>
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Kota Domisili</small>
+                            <span class="fw-semibold">{{ $customer->kota_domisili ?? 'Belum ditambahkan' }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Jenis Kelamin</small>
+                            <span class="fw-semibold">{{ $customer->gender ?? 'Belum ditambahkan' }}</span>
                         </div>
                     </div>
                 </div>
@@ -62,7 +49,7 @@
 
                             <div class="mb-3">
                                 <label class="form-label">Password Saat Ini</label>
-                                <input type="password" name="current_password"
+                                <input type="password" name="current_password" placeholder=""
                                     class="form-control @error('current_password') is-invalid @enderror" required>
                                 @error('current_password')
                                     <div class="invalid-feedback">{{ $message }}</div>

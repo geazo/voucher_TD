@@ -18,7 +18,7 @@
                         </div>
 
                         <h5 class="fw-bold mt-4 mb-0">{{ $customer->nama }}</h5>
-                        <span class="badge bg-dark mt-2">{{ $customer->membership->name ?? 'Reguler' }}</span>
+                        <span class="badge bg-dark mt-2">{{ $membership->name ?? 'Reguler' }}</span>
                     </div>
                 </div>
 

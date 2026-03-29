@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Membership;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -13,9 +14,11 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 class CustomerPaymentController extends Controller
 {
     // 1. Tampilkan Halaman Input Password
-    public function showAuth()
+    public function showAuth(Request $request)
     {
-        return view('customer.payment_auth');
+        $membershipId = $request->query('membership_id');
+        $membership = $membershipId ? Membership::find($membershipId) : null;
+        return view('customer.payment_auth', compact('membership', 'membershipId'));
     }
 
     // 2. Proses Verifikasi Password
@@ -30,6 +33,7 @@ class CustomerPaymentController extends Controller
         session(['qr_expires_at' => now()->addMinute()]);
         // Simpan pilihan dompet ke session
         session(['qr_wallet_id' => $request->membership_id]);
+
         return redirect()->route('customer.payment.qr');
     }
 
@@ -71,13 +75,12 @@ class CustomerPaymentController extends Controller
         // 3. Enkripsi dan render gambar QR Code
         $encryptedPayload = Crypt::encryptString($uniqueToken);
         $qrCode = QrCode::size(220)->generate($encryptedPayload);
-
-        // KODE BARU: Ambil detail tier untuk ditampilkan di halaman QR
-        $membership = $membershipId ? \App\Models\Membership::find($membershipId) : null;
+        $membership = $membershipId ? Membership::find($membershipId) : null;
 
         return view('customer.payment_qr', compact('qrCode', 'customer', 'uniqueToken', 'sisaDetik', 'membership'));
     }
-    // Fungsi Baru: Dipanggil diam-diam oleh Javascript HP Customer setiap 2 detik
+
+    // Fungsi expire QR as per idk seconds
     public function checkStatus($token)
     {
         // Cek status token di cache

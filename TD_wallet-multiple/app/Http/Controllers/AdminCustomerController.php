@@ -117,7 +117,7 @@ class AdminCustomerController extends Controller
         $membership = $wallets->first()->membership;
         $walletIds = $wallets->pluck('id')->toArray();
         $transactions = Transaction::leftJoin('operators', 'transactions.operator_id', '=', 'operators.id')
-            ->whereIn('transactions.wallet_id', $walletIds) 
+            ->whereIn('transactions.wallet_id', $walletIds)
             ->selectRaw('
                 transactions.created_at,
                 transactions.type,
@@ -142,16 +142,15 @@ class AdminCustomerController extends Controller
             'nama' => 'required|string|max:255',
             'email' => 'nullable|email|unique:customers,email,' . $customer->id,
             'notelp' => 'required|string|max:15|unique:customers,notelp,' . $customer->id,
-            'membership_id' => 'nullable|exists:memberships,id',
             'f_aktif' => 'required|boolean',
             'kota_domisili' => 'required|string|max:255',
-            'gender' => 'required|in:Laki-laki,Perempuan',
+            'gender' => 'required|in:Laki-laki,Perempuan,Lainnya',
         ]);
 
         $customer->update($request->all());
         return redirect()->route('customers.index')->with('success', 'Data customer berhasil diperbarui.');
     }
-    // Proses Delete (Superadmin)
+
     // Proses Ubah Status Aktif/Non-Aktif (Superadmin)
     public function destroy(Customer $customer)
     {

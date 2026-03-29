@@ -42,7 +42,7 @@
         <div class="mb-2 d-flex justify-content-between align-items-center">
             <div>
                 <h4 class="fw-bold mb-1">Halo, {{ $customer->nama }} 👋</h4>
-                <p class="text-muted small mb-0">Selamat datang di portal {{ config('app.name') }}</p>
+                <p class="text-muted small mb-0">Selamat datang Kembali </p>
             </div>
         </div>
 

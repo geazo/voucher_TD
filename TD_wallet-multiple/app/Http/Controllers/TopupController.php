@@ -81,7 +81,7 @@ class TopupController extends Controller
                     'sisa_saldo'  => $nominalTopup,
                     'expired_at'  => $masaBerlaku,
                     'operator_id' => $operatorId,
-                    'keterangan'  => 'Topup ' . $requestedPackage->name // Catatan transparan
+                    'keterangan'  => 'Topup Paket ' . $requestedPackage->name // Catatan transparan
                 ]);
 
                 // 5. Masukkan Saldo Poin Bonus (KREDIT) ke Dompet Poin tersebut
