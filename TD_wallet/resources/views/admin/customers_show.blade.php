@@ -138,25 +138,46 @@
                                     </td>
                                     <td class="text-center">
                                         @php
-                                            // 1. Cek apakah sudah lewat masa aktif
                                             $isExpired =
                                                 $tx->expired_at && \Carbon\Carbon::parse($tx->expired_at)->isPast();
 
-                                            // 2. Tombol muncul JIKA: Tipe Kredit DAN (Saldo > 0 ATAU Sudah Expired)
-                                            $showButton = $tx->type === 'kredit' && ($tx->sisa_saldo > 0 || $isExpired);
+                                            $latestExt = $tx->extension;
+
+                                            $isPending = $latestExt && $latestExt->status === 'pending';
+                                            $isRecovered =
+                                                $latestExt &&
+                                                $latestExt->status === 'approved' &&
+                                                $latestExt->is_recovery == 1;
+
+                                            $showButton =
+                                                $tx->type === 'kredit' &&
+                                                !$isPending &&
+                                                !$isRecovered &&
+                                                ($tx->sisa_saldo > 0 || $isExpired);
                                         @endphp
 
-                                        @if ($showButton)
+                                        @if ($isPending)
+                                            <span class="badge bg-warning text-dark border"
+                                                title="Menunggu Acc Super Admin">
+                                                <i class="bi bi-hourglass-split me-1"></i> Menunggu
+                                            </span>
+                                        @elseif ($isRecovered)
+                                            <span class="badge bg-success border"
+                                                title="Saldo hangus ini sudah diganti ke transaksi baru">
+                                                <i class="bi bi-check-circle me-1"></i> Dipulihkan
+                                            </span>
+                                        @elseif ($showButton)
                                             <a href="{{ route('admin.extensions.create', ['transaction_id' => $tx->id]) }}"
                                                 class="btn btn-sm {{ $isExpired ? 'btn-warning text-dark border-warning' : 'btn-outline-primary' }} fw-bold shadow-sm"
                                                 title="{{ $isExpired ? 'Pulihkan Saldo yang Sudah Hangus' : 'Ajukan Perpanjangan Masa Aktif Saldo' }}">
-                                                <i class="bi bi-calendar-plus"></i>
+                                                <i
+                                                    class="bi {{ $isExpired ? 'bi-arrow-counterclockwise' : 'bi-calendar-plus' }}"></i>
                                                 {{ $isExpired ? 'Pulihkan' : 'Perpanjang' }}
                                             </a>
                                         @else
                                             <span class="text-muted small">-</span>
                                         @endif
-                                    </td>   
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>

@@ -15,6 +15,7 @@
     {{-- @vite(['resources/css/app.css', 'resources/js/app.js']) --}}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="icon" type="image/png" href="{{ asset('logo/logo_tamandayu.jpg') }}">
+    @yield('styles')
 </head>
 
 <body class="bg-light">
@@ -28,6 +29,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @stack('script')
 </body>
 
 </html>

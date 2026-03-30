@@ -48,7 +48,7 @@ class TopupController extends Controller
                 ->sum('sisa_saldo');
 
             if ($saldoUangAktif > 0) {
-                return back()->with('error', "Gagal Proses Topup : Customer masih memiliki Saldo Uang Aktif (Rp " . number_format($saldoUangAktif, 0, ',', '.') . ") di tier " . $customer->membership->name . ". Saldo harus habis untuk pindah tier, atau silakan buat akun baru untuk customer ini.");
+                return back()->with('error', "Gagal Proses Topup : Customer masih memiliki Saldo Uang Aktif (Rp " . number_format($saldoUangAktif, 0, ',', '.') . ") di tipe membership " . $customer->membership->name . ". Saldo harus habis untuk pindah tipe membership, atau silakan buat akun baru untuk customer ini.");
             }
         }
         // ==========================================
@@ -95,7 +95,7 @@ class TopupController extends Controller
 
                     // B. Tentukan Prefix (2 Huruf) dari paket yang baru dibeli
                     $newPrefix = $requestedPackage->prefix;
-                    
+
                     // C. Update nomor rekening pada SEMUA dompet milik customer ini (Uang & Poin)
                     foreach ($customer->wallets as $dompet) {
                         // Ambil 8 digit terakhir dari nomor rekening lama

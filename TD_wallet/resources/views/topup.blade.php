@@ -1,111 +1,176 @@
-    @extends('layouts.app')
+@extends('layouts.app')
 
-    @section('content')
-        <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
-                <div class="card shadow-sm border-0 mt-3">
-                    <div class="card-body p-4">
-                        <h2 class="mb-4 text-center text-success fw-bold">Form Topup</h2>
+@section('styles')
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+@endsection
 
-                        @if (session('success'))
-                            <div class="alert alert-success">{{ session('success') }}</div>
-                        @endif
-                        @if (session('error'))
-                            <div class="alert alert-danger">{{ session('error') }}</div>
-                        @endif
+@section('content')
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm border-0 mt-3">
+                <div class="card-body p-4">
+                    <h2 class="mb-4 text-center text-success fw-bold">Form Topup</h2>
 
-                        <form method="POST" action="{{ route('topup.store') }}">
-                            @csrf
+                    @if (session('success'))
+                        <div class="alert alert-success">{{ session('success') }}</div>
+                    @endif
+                    @if (session('error'))
+                        <div class="alert alert-danger">{{ session('error') }}</div>
+                    @endif
 
-                            <div class="mb-3">
-                                <label for="phone_filter" class="form-label fw-semibold">Nomor Whatsapp</label>
-                                <input type="text" id="phone_filter" placeholder="081..." required
-                                    class="form-control" />
-                            </div>
+                    <form method="POST" action="{{ route('topup.store') }}" id="topupForm">
+                        @csrf
 
-                            <div class="mb-3">
-                                <label for="customer_id" class="form-label fw-semibold">Pilih Customer</label>
-                                <select name="customer_id" id="customer_id" required class="form-select">
-                                    <option value="" selected>-- Pilih Customer --</option>
-                                    @foreach ($customers as $customer)
-                                        <option value="{{ $customer->id }}" data-phone="{{ $customer->notelp }}">
-                                            {{ $customer->nama }} ({{ $customer->notelp }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="customer_id" class="form-label fw-semibold">Pilih Customer</label>
+                            <select name="customer_id" id="customer_id" required placeholder="Search Customer...">
+                                <option value="" selected></option>
+                                @foreach ($customers as $customer)
+                                    <option value="{{ $customer->id }}" data-nama="{{ $customer->nama }}"
+                                        data-notelp="{{ $customer->notelp }}"
+                                        data-email="{{ $customer->email ?? 'Tidak ada email' }}">
+                                        {{ $customer->nama }} ({{ $customer->notelp }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                            <hr class="my-4">
+                        <hr class="my-4">
 
-                            <div class="mb-3">
-                                <label for="membership_id" class="form-label fw-semibold">Pilih Paket Topup</label>
-                                <select name="membership_id" id="membership_id" required class="form-select text-dark">
-                                    <option value="" class="text-dark">-- Pilih Paket Membership --</option>
-                                    @foreach ($packages as $pkg)
-                                        <option value="{{ $pkg->id }}" class="text-dark">
-                                            {{ $pkg->name }} - Rp {{ number_format($pkg->harga, 0, ',', '.') }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label for="membership_id" class="form-label fw-semibold">Pilih Paket Topup</label>
+                            <select name="membership_id" id="membership_id" required class="form-select text-dark">
+                                <option value="" class="text-dark">-- Pilih Paket Membership --</option>
+                                @foreach ($packages as $pkg)
+                                    <option value="{{ $pkg->id }}" class="text-dark">
+                                        {{ $pkg->name }} - Rp {{ number_format($pkg->harga, 0, ',', '.') }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                            {{-- <div class="mb-4">
-                                <label for="pin" class="form-label fw-semibold">PIN Sekuritas Kasir</label>
-                                <input type="password" name="pin" id="pin" class="form-control" />
-                            </div> --}}
-
-                            <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
-                                PROSES TOPUP
-                            </button>
-                        </form>
-                    </div>
+                        <button type="button" id="btnTriggerModal" class="btn btn-success w-100 py-2 fw-bold">
+                            PROSES TOPUP
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
-        <script>
-            // Logika Live Filter Dropdown Customer
-            const phoneFilter = document.getElementById('phone_filter');
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2"></i>Konfirmasi Topup</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border border-success border-opacity-25 mb-0">
+                        <p class="text-center text-muted small mb-3">Pastikan data pelanggan dan paket sudah benar sebelum
+                            memproses.</p>
+                        <table class="table table-borderless table-sm mb-0">
+                            <tr>
+                                <td class="text-muted" width="35%">Nama Customer</td>
+                                <td width="5%">:</td>
+                                <td class="fw-bold text-dark" id="modalCustName">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">No. WhatsApp</td>
+                                <td>:</td>
+                                <td class="fw-bold text-dark" id="modalCustPhone">-</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Email</td>
+                                <td>:</td>
+                                <td class="fw-bold text-dark" id="modalCustEmail">-</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3">
+                                    <hr class="my-1">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Paket Dipilih</td>
+                                <td>:</td>
+                                <td class="fw-bold text-success" id="modalPkgName">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-success fw-bold px-4" id="btnConfirmSubmit">
+                        <i class="bi bi-check2-circle me-1"></i> PROSES TOPUP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+    <script>
+        // Pindahkan SEMUA kode ke dalam DOMContentLoaded agar dieksekusi setelah halaman & Bootstrap siap
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // 1. Inisialisasi Tom Select
+            new TomSelect("#customer_id", {
+                create: false,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                },
+                maxOptions: 50
+            });
+
+            // 2. Deklarasi Variabel
+            const topupForm = document.getElementById('topupForm');
+            const btnTriggerModal = document.getElementById('btnTriggerModal');
+            const btnConfirmSubmit = document.getElementById('btnConfirmSubmit');
             const customerSelect = document.getElementById('customer_id');
-            const allOptions = Array.from(customerSelect.options);
-            phoneFilter.addEventListener('input', function() {
-                // 1. BERSIHKAN INPUT KASIR:
-                let searchTerm = this.value.replace(/\D/g, '').replace(/^0+/, '');
-                const defaultOption = allOptions[0];
-                customerSelect.innerHTML = '';
+            const packageSelect = document.getElementById('membership_id');
 
-                const filteredOptions = allOptions.filter(option => {
-                    let phone = option.getAttribute('data-phone');
-                    if (!phone) return false;
-                    // 2. BERSIHKAN NOMOR DATABASE:
-                    let cleanPhone = phone.replace(/\D/g, '');
-                    // 3. COCOKKAN INPUT KASIR DENGAN NOMOR DATABASE
-                    return cleanPhone.includes(searchTerm);
-                });
+            // Inisialisasi Modal SEKARANG aman karena sudah di dalam DOMContentLoaded
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
 
-                if (filteredOptions.length === 0 && searchTerm !== "") {
-                    defaultOption.text = "Customer tidak ditemukan";
-                    defaultOption.disabled = true;
-                } else {
-                    defaultOption.text = "-- Pilih Customer --";
-                    defaultOption.disabled = false;
+            // 3. Event Listener Tombol Proses
+            btnTriggerModal.addEventListener('click', function() {
+
+                // VALIDASI MANUAL:
+                // Karena Tom Select menyembunyikan <select> customer_id, HTML5 checkValidity() bisa error.
+                // Kita periksa manual apakah nilainya kosong.
+                if (customerSelect.value === "" || packageSelect.value === "") {
+                    // Panggil reportValidity() hanya untuk trigger balon pesan di field membership yang terlihat
+                    topupForm.reportValidity();
+                    return; // Hentikan proses jika belum lengkap
                 }
 
-                customerSelect.appendChild(defaultOption);
+                // Ambil Option yang sedang dipilih
+                const selectedCustOption = customerSelect.options[customerSelect.selectedIndex];
+                const selectedPkgOption = packageSelect.options[packageSelect.selectedIndex];
 
-                filteredOptions.forEach(option => {
-                    if (option.value !== "") {
-                        customerSelect.appendChild(option);
-                    }
-                });
+                // Estafet data ke dalam Modal
+                document.getElementById('modalCustName').textContent = selectedCustOption.getAttribute('data-nama');
+                document.getElementById('modalCustPhone').textContent = selectedCustOption.getAttribute('data-notelp');
+                document.getElementById('modalCustEmail').textContent = selectedCustOption.getAttribute('data-email');
+                document.getElementById('modalPkgName').textContent = selectedPkgOption.text;
+
+                // Tampilkan Modal
+                confirmModal.show();
             });
 
-            // Logika Isi Otomatis Nomor HP jika Dropdown dipilih manual
-            customerSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption.value !== "") {
-                    phoneFilter.value = selectedOption.getAttribute('data-phone');
-                }
+            // 4. Event Listener Tombol Konfirmasi di Modal
+            btnConfirmSubmit.addEventListener('click', function() {
+                // Ubah teks tombol jadi loading agar kasir tidak klik 2x
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+                this.disabled = true;
+
+                // Submit form ke Laravel
+                topupForm.submit();
             });
-        </script>
-    @endsection
+
+        });
+    </script>
+@endsection

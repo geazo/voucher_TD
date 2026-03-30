@@ -149,36 +149,42 @@ class AdminExtensionController extends Controller
     // Menyimpan pengajuan ke database
     public function storeRequest(Request $request)
     {
+        // Validasi input form
         $request->validate([
             'transaction_id' => 'required|exists:transactions,id',
             'alasan'         => 'required|string|min:10',
             'tambahan_hari'  => 'required|integer|min:1|max:365',
             'is_recovery'    => 'required|boolean',
-            'nominal_uang'   => 'required|numeric|min:0',
-            'nominal_poin'   => 'required|numeric|min:0',
+            'nominal_uang'   => 'required|numeric|min:0', 
         ]);
 
-        $transaction = Transaction::with('wallet')->findOrFail($request->transaction_id);
+        $pendingRequest = BalanceExtension::where('transaction_id', $request->transaction_id)
+            ->where('status', 'pending')
+            ->first();
 
-        $existingRequest = BalanceExtension::where('transaction_id', $transaction->id)
-            ->where('status', 'pending')->first();
+        if ($pendingRequest) {
+            return redirect()->back()->with('error', 'Transaksi ini sedang dalam proses menunggu persetujuan Super Admin.');
+        }
 
-        if ($existingRequest) {
-            return redirect()->back()->with('error', 'Transaksi ini sedang dalam proses pengajuan perpanjangan.');
+        if ($request->is_recovery) {
+            $recoveredRequest = BalanceExtension::where('transaction_id', $request->transaction_id)
+                ->where('status', 'approved')
+                ->where('is_recovery', true)
+                ->first();
+
+            if ($recoveredRequest) {
+                return redirect()->back()->with('error', 'Saldo hangus pada transaksi ini sudah pernah dipulihkan menjadi saldo baru.');
+            }
         }
 
         BalanceExtension::create([
-            'customer_id'    => $transaction->wallet->customer_id,
-            'transaction_id' => $transaction->id,
+            'transaction_id' => $request->transaction_id,
             'alasan'         => $request->alasan,
             'tambahan_hari'  => $request->tambahan_hari,
             'is_recovery'    => $request->is_recovery,
             'nominal_uang'   => $request->nominal_uang,
-            'nominal_poin'   => $request->nominal_poin,
             'status'         => 'pending'
         ]);
-
-        return redirect()->route('customers.show', $transaction->wallet->customer_id)
-            ->with('success', 'Pengajuan berhasil dikirim ke Super Admin.');
+        return redirect()->back()->with('success', 'Pengajuan berhasil dikirim ke Super Admin.');
     }
 }

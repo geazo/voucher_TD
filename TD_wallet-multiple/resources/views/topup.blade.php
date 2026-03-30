@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@section('styles')
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+@endsection
+
 @section('content')
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
@@ -18,17 +22,12 @@
                         @csrf
 
                         <div class="mb-3">
-                            <label for="phone_filter" class="form-label fw-semibold">Nomor Whatsapp</label>
-                            <input type="text" id="phone_filter" placeholder="081..." required class="form-control" />
-                        </div>
-
-                        <div class="mb-3">
                             <label for="customer_id" class="form-label fw-semibold">Pilih Customer</label>
-                            <select name="customer_id" id="customer_id" required class="form-select">
-                                <option value="" selected>-- Pilih Customer --</option>
+                            <select name="customer_id" id="customer_id" required placeholder="Ketik nama atau no HP...">
+                                <option value="" selected>Ketik nama atau no HP...</option>
                                 @foreach ($customers as $customer)
-                                    <option value="{{ $customer->id }}" data-phone="{{ $customer->notelp }}"
-                                        data-email="{{ $customer->email }}">
+                                    <option value="{{ $customer->id }}" data-nama="{{ $customer->nama }}"
+                                        data-phone="{{ $customer->notelp }}" data-email="{{ $customer->email }}">
                                         {{ $customer->nama }} ({{ $customer->notelp }})
                                     </option>
                                 @endforeach
@@ -90,9 +89,10 @@
                                     <td>:</td>
                                     <td class="fw-bold text-dark" id="modalCustEmail">-</td>
                                 </tr>
-                                <td colspan="3">
-                                    <hr class="my-1">
-                                </td>
+                                <tr>
+                                    <td colspan="3">
+                                        <hr class="my-1">
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td class="text-muted align-middle">Paket Dipilih</td>
@@ -114,83 +114,58 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
     <script>
-        // Logika Live Filter Dropdown Customer (Sama seperti aslinya)
-        const phoneFilter = document.getElementById('phone_filter');
-        const customerSelect = document.getElementById('customer_id');
-        const allOptions = Array.from(customerSelect.options);
-
-        phoneFilter.addEventListener('input', function() {
-            let searchTerm = this.value.replace(/\D/g, '').replace(/^0+/, '');
-            const defaultOption = allOptions[0];
-            customerSelect.innerHTML = '';
-
-            const filteredOptions = allOptions.filter(option => {
-                let phone = option.getAttribute('data-phone');
-                if (!phone) return false;
-                let cleanPhone = phone.replace(/\D/g, '');
-                return cleanPhone.includes(searchTerm);
-            });
-
-            if (filteredOptions.length === 0 && searchTerm !== "") {
-                defaultOption.text = "Customer tidak ditemukan";
-                defaultOption.disabled = true;
-            } else {
-                defaultOption.text = "-- Pilih Customer --";
-                defaultOption.disabled = false;
-            }
-
-            customerSelect.appendChild(defaultOption);
-
-            filteredOptions.forEach(option => {
-                if (option.value !== "") {
-                    customerSelect.appendChild(option);
-                }
-            });
-        });
-
-        customerSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value !== "") {
-                phoneFilter.value = selectedOption.getAttribute('data-phone');
-            }
-        });
-
-        // ==============================================
-        // Modal konfirmasi sebelum submit form
-        // ==============================================
         document.addEventListener('DOMContentLoaded', function() {
+            // 1. Inisialisasi Tom Select
+            new TomSelect("#customer_id", {
+                create: false,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                },
+                maxOptions: 50
+            });
+
             const topupForm = document.getElementById('topupForm');
             const btnTriggerModal = document.getElementById('btnTriggerModal');
             const btnSubmitForm = document.getElementById('btnSubmitForm');
+            const customerSelect = document.getElementById('customer_id');
+            const packageSelect = document.getElementById('membership_id');
 
-            // modal bootstrap 5
             const confirmModal = new bootstrap.Modal(document.getElementById('confirmTopupModal'));
+
+            // 2. Logika Modal Konfirmasi
             btnTriggerModal.addEventListener('click', function() {
-                // 1. Validasi Form Bawaan HTML (Cek apakah select sudah dipilih)
-                if (!topupForm.checkValidity()) {
-                    topupForm.reportValidity(); // Memunculkan tooltip "Please fill out this field"
+                // Validasi manual: karena tag <select> asli disembunyikan oleh Tom Select,
+                // kita cek isinya secara manual agar form tidak error "not focusable"
+                if (customerSelect.value === "" || packageSelect.value === "") {
+                    topupForm.reportValidity();
                     return;
                 }
-                // 2. Ambil Data dari Inputan
+
+                // Ambil Data dari Inputan
                 const selectedCustOption = customerSelect.options[customerSelect.selectedIndex];
-                const selectedPkgOption = document.getElementById('membership_id').options[document
-                    .getElementById('membership_id').selectedIndex];
-                const rawCustText = selectedCustOption.text;
-                const custName = rawCustText.split('(')[0].trim();
+                const selectedPkgOption = packageSelect.options[packageSelect.selectedIndex];
+
+                // Ekstrak data dari atribut yang kita titipkan tadi
+                const custName = selectedCustOption.getAttribute('data-nama');
                 const custPhone = selectedCustOption.getAttribute('data-phone');
                 const custEmail = selectedCustOption.getAttribute('data-email');
-                // 3. Masukkan Data ke dalam Modal
-                document.getElementById('modalCustName').textContent = custName;
+
+                // Masukkan Data ke dalam Modal
+                document.getElementById('modalCustName').textContent = custName || '-';
                 document.getElementById('modalCustPhone').textContent = custPhone || '-';
-                document.getElementById('modalCustEmail').textContent = custEmail ? custEmail : 'Tidak ada email';
+                document.getElementById('modalCustEmail').textContent = custEmail ? custEmail :
+                    'Tidak ada email';
                 document.getElementById('modalPkgName').textContent = selectedPkgOption.text;
 
-                // 4. Tampilkan Modal
+                // Tampilkan Modal
                 confirmModal.show();
             });
 
-            // 5. Logika Tombol Submit di Modal
+            // 3. Logika Tombol Submit di Modal
             btnSubmitForm.addEventListener('click', function() {
                 this.disabled = true;
                 this.innerHTML =

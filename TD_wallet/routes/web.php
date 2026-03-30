@@ -19,8 +19,19 @@ use App\Http\Controllers\TransactionController;
 
 // --- Middlewares ---
 use App\Http\Middleware\ForcePasswordChange;
+use Illuminate\Support\Facades\Auth;
 
-Route::redirect('/', '/customer/login');
+Route::get('/', function () {
+    if (Auth::guard('customer')->check()) {
+        return redirect()->route('customer.dashboard');
+    }
+
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect()->route('customer.login');
+});
 
 // =========================================================================
 // 1. AREA CUSTOMER
