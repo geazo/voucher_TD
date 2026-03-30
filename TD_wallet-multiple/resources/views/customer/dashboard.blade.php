@@ -257,15 +257,13 @@
                 let memberIdParam = activeMembershipId ? activeMembershipId : '';
                 btnPayNow.href = "{{ route('customer.payment.auth') }}?membership_id=" + memberIdParam;
             }
-
-            // Jalankan saat di-scroll (Gunakan setTimeout agar tidak memberatkan browser)
+            // timeout biar enteng scroll event selesai dulu baru update
             let scrollTimeout;
             carousel.addEventListener('scroll', function() {
                 clearTimeout(scrollTimeout);
                 scrollTimeout = setTimeout(updateActiveCard, 50);
             });
 
-            // Jalankan saat halaman pertama dimuat
             updateActiveCard();
         });
     </script>

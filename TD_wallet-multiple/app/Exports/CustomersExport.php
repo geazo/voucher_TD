@@ -47,8 +47,8 @@ class CustomersExport implements FromQuery, WithHeadings, WithMapping, ShouldAut
         }
 
         // 2. Buat Header untuk dompet Reguler (Default tanpa tier)
-        $headings[] = "Uang - REGULER";
-        $headings[] = "Poin - REGULER";
+        $headings[] = "CELL KOSONG";
+        $headings[] = "CELL KOSONG";
 
         // 3. Buat Header Grand Total
         $headings[] = 'GRAND TOTAL UANG (Rp)';
