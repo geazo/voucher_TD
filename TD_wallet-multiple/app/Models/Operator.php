@@ -10,7 +10,7 @@ class Operator extends Authenticatable
     protected $fillable = [
         'nama',
         'email',
-        'role', // superadmin, admin, kasir
+        'role', 
         'password'
     ];
 

@@ -10,57 +10,115 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate; // Tambahkan ini untuk hitung abjad kolom
 
 class CustomersExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithColumnFormatting
 {
     use Exportable;
 
+    protected $memberships;
+
+    // TERIMA DATA MEMBERSHIP DARI CONTROLLER
+    public function __construct($memberships)
+    {
+        $this->memberships = $memberships;
+    }
+
     public function query()
     {
-        // Load relasi membership dan wallets beserta transaksinya untuk hitung saldo
-        return Customer::query()->with(['membership', 'wallets.transactions']);
+        return Customer::query()->with(['wallets.membership', 'wallets.transactions']);
     }
 
     public function headings(): array
     {
-        return [
+        $headings = [
             'ID',
             'Nama Customer',
             'Email',
             'No. WhatsApp',
-            'Membership',
             'Status',
-            'Saldo Uang (Rp)',
-            'Saldo Poin (Pts)',
             'Tgl Bergabung'
         ];
+
+        // 1. Buat Header Dinamis untuk setiap Membership
+        foreach ($this->memberships as $m) {
+            $headings[] = "Uang - " . strtoupper($m->name);
+            $headings[] = "Poin - " . strtoupper($m->name);
+        }
+
+        // 2. Buat Header untuk dompet Reguler (Default tanpa tier)
+        $headings[] = "Uang - REGULER";
+        $headings[] = "Poin - REGULER";
+
+        // 3. Buat Header Grand Total
+        $headings[] = 'GRAND TOTAL UANG (Rp)';
+        $headings[] = 'GRAND TOTAL POIN (Pts)';
+
+        return $headings;
     }
 
     public function map($customer): array
     {
-        // Tarik saldo menggunakan accessor 'balance' dari model Wallet kamu
-        $dompetUang = $customer->wallets->where('type', 'Uang')->first();
-        $dompetPoin = $customer->wallets->where('type', 'Poin')->first();
-
-        return [
+        $row = [
             $customer->id,
             $customer->nama,
             $customer->email ?? '-',
-            " " . ($customer->notelp ?? '-'), // Spasi agar dibaca teks oleh Excel
-            $customer->membership->name ?? 'Reguler',
+            " " . ($customer->notelp ?? '-'), // Spasi agar dibaca teks
             $customer->f_aktif ? 'Aktif' : 'Non-Aktif',
-            $dompetUang->balance ?? 0,
-            $dompetPoin->balance ?? 0,
             $customer->created_at->format('d/m/Y H:i'),
         ];
+
+        $wallets = $customer->wallets;
+        $grandTotalUang = 0;
+        $grandTotalPoin = 0;
+
+        // 1. Isi saldo berdasarkan masing-masing tier membership
+        foreach ($this->memberships as $m) {
+            $uang = $wallets->where('membership_id', $m->id)->where('type', 'Uang')->sum('balance');
+            $poin = $wallets->where('membership_id', $m->id)->where('type', 'Poin')->sum('balance');
+
+            $row[] = $uang;
+            $row[] = $poin;
+
+            $grandTotalUang += $uang;
+            $grandTotalPoin += $poin;
+        }
+
+        // 2. Isi saldo untuk dompet Reguler (yang membership_id-nya null)
+        $uangReguler = $wallets->whereNull('membership_id')->where('type', 'Uang')->sum('balance');
+        $poinReguler = $wallets->whereNull('membership_id')->where('type', 'Poin')->sum('balance');
+
+        $row[] = $uangReguler;
+        $row[] = $poinReguler;
+
+        $grandTotalUang += $uangReguler;
+        $grandTotalPoin += $poinReguler;
+
+        // 3. Isi Grand Total di kolom paling akhir
+        $row[] = $grandTotalUang;
+        $row[] = $grandTotalPoin;
+
+        return $row;
     }
 
     public function columnFormats(): array
     {
-        return [
-            'D' => NumberFormat::FORMAT_TEXT, // No Telp (Teks)
-            'G' => '#,##0',                   // Saldo Uang (Ribuan)
-            'H' => '#,##0',                   // Saldo Poin (Ribuan)
+        $formats = [
+            'D' => NumberFormat::FORMAT_TEXT, // No Telp
         ];
+
+        // Hitung mulai dari kolom ke-7 (Kolom G) karena A-F berisi data profil
+        $startColIndex = 7;
+
+        // Total kolom angka = (Jumlah tier * 2) + 2 Reguler + 2 Grand Total
+        $jumlahKolomAngka = (count($this->memberships) * 2) + 4;
+
+        // Beri format ribuan ke semua kolom angka secara dinamis
+        for ($i = 0; $i < $jumlahKolomAngka; $i++) {
+            $abjadKolom = Coordinate::stringFromColumnIndex($startColIndex + $i);
+            $formats[$abjadKolom] = '#,##0';
+        }
+
+        return $formats;
     }
 }

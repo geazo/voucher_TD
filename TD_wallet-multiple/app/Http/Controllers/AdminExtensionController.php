@@ -25,11 +25,10 @@ class AdminExtensionController extends Controller
     // Memproses Approval / Rejection
     public function process(Request $request, $id)
     {
-        $request->validate([
-            'action' => 'required|in:approve,reject'
-        ]);
+        $request->validate(['action' => 'required|in:approve,reject']);
 
-        $extension = BalanceExtension::with('transaction')->findOrFail($id);
+        // Pastikan relasi transaction.wallet ter-load
+        $extension = BalanceExtension::with('transaction.wallet')->findOrFail($id);
 
         if ($extension->status !== 'pending') {
             return back()->with('error', 'Request ini sudah diproses sebelumnya.');
@@ -40,39 +39,61 @@ class AdminExtensionController extends Controller
                 $operatorId = Auth::id();
 
                 if ($request->action === 'approve') {
-                    // 1. Ubah status request
                     $extension->update([
-                        'status' => 'approved',
+                        'status'      => 'approved',
                         'operator_id' => $operatorId
                     ]);
 
-                    // 2. Ambil transaksi perwakilan
                     $tx = $extension->transaction;
 
-                    // 3. CARI SEMUA TRANSAKSI (UANG & POIN) DI WAKTU YANG SAMA
-                    $relatedTransactions = \App\Models\Transaction::whereHas('wallet', function ($q) use ($tx) {
-                        $q->where('customer_id', $tx->wallet->customer_id);
+                    // 1. CARI TRANSAKSI TERKAIT
+                    $walletTier = $tx->wallet->membership_id;
+                    $relatedTransactions = Transaction::whereHas('wallet', function ($q) use ($tx, $walletTier) {
+                        $q->where('customer_id', $tx->wallet->customer_id)
+                            ->where('membership_id', $walletTier);
                     })
                         ->where('created_at', $tx->created_at)
-                        ->where('type', 'kredit') // Pastikan hanya Topup
+                        ->where('type', 'kredit')
                         ->get();
 
-                    // 4. PERPANJANG SEMUANYA
-                    foreach ($relatedTransactions as $rt) {
-                        $rt->update([
-                            'expired_at' => \Carbon\Carbon::parse($rt->expired_at)->addDays($extension->tambahan_hari)
-                        ]);
+                    // 2. LOGIKA EXTENSION
+                    if ($extension->is_recovery) {
+
+                        $masaBerlakuBaru = now()->addDays($extension->tambahan_hari);
+
+                        foreach ($relatedTransactions as $rt) {
+                            $nominalSuntikan = ($rt->wallet->type == 'Uang') ? $extension->nominal_uang : $extension->nominal_poin;
+
+                            if ($nominalSuntikan > 0) {
+                                Transaction::create([
+                                    'wallet_id'   => $rt->wallet_id,
+                                    'type'        => 'kredit',
+                                    'nominal'     => $nominalSuntikan,
+                                    'sisa_saldo'  => $nominalSuntikan,
+                                    'expired_at'  => $masaBerlakuBaru,
+                                    'operator_id' => $operatorId,
+                                    'keterangan'  => 'Pemulihan Saldo (Ref: TX-' . $rt->id . ')'
+                                ]);
+                            }
+                        }
+                    } else {
+                        // JIKA PERPANJANGAN (Update Tanggal Saja)
+                        foreach ($relatedTransactions as $rt) {
+                            $rt->update([
+                                'expired_at' => \Carbon\Carbon::parse($rt->expired_at)->addDays($extension->tambahan_hari)
+                            ]);
+                        }
                     }
                 } else {
-                    // Jika ditolak, cukup ubah status
+                    // Jika ditolak
                     $extension->update([
-                        'status' => 'rejected',
+                        'status'      => 'rejected',
                         'operator_id' => $operatorId
                     ]);
                 }
             });
 
-            $pesan = $request->action === 'approve' ? 'Perpanjangan saldo berhasil disetujui!' : 'Pengajuan perpanjangan ditolak.';
+            $pesan = $request->action === 'approve' ? 'Saldo berhasil diproses!' : 'Pengajuan ditolak.';
             return back()->with('success', $pesan);
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal memproses request: ' . $e->getMessage());
@@ -80,41 +101,52 @@ class AdminExtensionController extends Controller
     }
 
     // ==========================================
-    // AREA ADMIN (FRONT DESK) - MEMBUAT REQUEST
+    // AREA ADMIN - MEMBUAT REQUEST
     // ==========================================
 
     // Menampilkan form pengajuan dari show customer
     public function createRequest(Request $request)
     {
-        // Jaring Pengaman
         if (!$request->has('transaction_id') || $request->transaction_id == null) {
             return redirect()->route('dashboard')->with('error', 'Silakan pilih riwayat transaksi customer terlebih dahulu.');
         }
 
-        $transaction = \App\Models\Transaction::with('wallet.customer')->findOrFail($request->transaction_id);
-
-        // Tarik semua transaksi topup (Uang & Poin) yang terjadi di detik yang sama
-        $relatedTransactions = \App\Models\Transaction::with('wallet')
-            ->whereHas('wallet', function($q) use ($transaction) {
-                $q->where('customer_id', $transaction->wallet->customer_id);
+        $transaction = Transaction::with('wallet.customer')->findOrFail($request->transaction_id);
+        $walletTier = $transaction->wallet->membership_id;
+        // CARI TRANSAKSI UANG & POIN HANYA DI TIER DOMPET YANG SAMA
+        $relatedTransactions = Transaction::with('wallet')
+            ->whereHas('wallet', function ($q) use ($transaction, $walletTier) {
+                $q->where('customer_id', $transaction->wallet->customer_id)
+                    ->where('membership_id', $walletTier); // Isolasi Multi-Wallet
             })
             ->where('created_at', $transaction->created_at)
             ->where('type', 'kredit')
             ->get();
 
-        // Pisahkan variabel sisa saldo
         $saldoUang = 0;
         $saldoPoin = 0;
+        $isRecovery = false;
 
         foreach ($relatedTransactions as $rt) {
-            if ($rt->wallet->type == 'Uang') {
-                $saldoUang = $rt->sisa_saldo;
-            } elseif ($rt->wallet->type == 'Poin') {
-                $saldoPoin = $rt->sisa_saldo;
+            $nominal = $rt->sisa_saldo;
+
+            // LOGIKA RECOVERY: JIKA SALDO 0, CARI NOMINAL YANG HANGUS DARI ADJUSTMENT
+            if ($nominal == 0) {
+                $isRecovery = true;
+                $adjustment = Transaction::where('wallet_id', $rt->wallet_id)
+                    ->where('type', 'adjustment')
+                    ->whereDate('created_at', '>=', \Carbon\Carbon::parse($rt->expired_at)->toDateString())
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $nominal = $adjustment ? $adjustment->nominal : 0;
             }
+
+            if ($rt->wallet->type == 'Uang') $saldoUang = $nominal;
+            if ($rt->wallet->type == 'Poin') $saldoPoin = $nominal;
         }
-        
-        return view('admin.extension_create', compact('transaction', 'saldoUang', 'saldoPoin'));
+
+        return view('admin.extension_create', compact('transaction', 'saldoUang', 'saldoPoin', 'isRecovery'));
     }
 
     // Menyimpan pengajuan ke database
@@ -129,22 +161,37 @@ class AdminExtensionController extends Controller
         $transaction = Transaction::with('wallet')->findOrFail($request->transaction_id);
 
         // Cek apakah sudah ada request yang masih pending untuk transaksi ini
-        $existingRequest = BalanceExtension::where('transaction_id', $transaction->id)
-            ->where('status', 'pending')->first();
+        $pendingRequest = BalanceExtension::where('transaction_id', $transaction->id)
+            ->where('status', 'pending')
+            ->first();
 
-        if ($existingRequest) {
-            return redirect()->back()->with('error', 'Transaksi ini sedang dalam proses pengajuan perpanjangan.');
+        if ($pendingRequest) {
+            return redirect()->back()->with('error', 'Transaksi ini sedang dalam proses menunggu persetujuan Super Admin.');
         }
+        // check apa pemulihan
+        if ($request->is_recovery) {
+            $recoveredRequest = BalanceExtension::where('transaction_id', $transaction->id)
+                ->where('status', 'approved')
+                ->where('is_recovery', true)
+                ->first();
 
+            if ($recoveredRequest) {
+                return redirect()->back()->with('error', 'Saldo hangus pada transaksi ini sudah pernah dipulihkan menjadi saldo baru.');
+            }
+        }
         BalanceExtension::create([
             'customer_id'    => $transaction->wallet->customer_id,
             'transaction_id' => $transaction->id,
             'alasan'         => $request->alasan,
             'tambahan_hari'  => $request->tambahan_hari,
-            'status'         => 'pending' // Default selalu pending menunggu Super Admin
+            'is_recovery'    => $request->is_recovery ?? false,
+            'nominal_uang'   => $request->nominal_uang ?? 0,
+            'nominal_poin'   => $request->nominal_poin ?? 0,
+            'status'         => 'pending'
         ]);
-
-        return redirect()->route('customers.show', $transaction->wallet->customer_id)
-            ->with('success', 'Pengajuan perpanjangan saldo berhasil dikirim ke Super Admin.');
+        $customerId = $transaction->wallet->customer_id;
+        $memId = $transaction->wallet->membership_id ?? 'default';
+        return redirect()->route('customers.show', ['customer' => $customerId, 'membership_id' => $memId === 'default' ? '' : $memId])
+            ->with('success', 'Pengajuan perpanjangan saldo berhasil dikirim, menunggu persetujuan.');
     }
 }

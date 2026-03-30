@@ -32,7 +32,7 @@
                 <div>
                     <p class="mb-1 opacity-75" style="font-size: 0.85rem;">Member ID</p>
                     <h5 class="fw-bold mb-0" style="letter-spacing: 2px; font-family: monospace;">
-                        {{ $customer->wallets->first()->no_rekening ?? 'N/A' }}
+                        {{ $dompetUang->no_rekening ?? 'N/A' }}
                     </h5>
                 </div>
                 <div class="text-end">

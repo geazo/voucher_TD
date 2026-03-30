@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // --- Controllers ---
@@ -18,9 +19,22 @@ use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\TransactionController;
 
 // --- Middlewares ---
+use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\ForcePasswordChange;
 
-Route::redirect('/', '/customer/login');
+
+// ====================
+// ROUTE LANDING PAGE
+// ====================
+Route::get('/', function () {
+    if (Auth::guard('customer')->check()) {
+        return redirect()->route('customer.dashboard');
+    }
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+    return redirect()->route('customer.login');
+});
 
 // =========================================================================
 // 1. AREA CUSTOMER
@@ -88,7 +102,7 @@ Route::prefix('operator')->middleware(['auth'])->group(function () {
     Route::post('/logout', [OperatorController::class, 'logout'])->name('logout');
 
     // Akses Kasir, Admin, Superadmin
-    Route::middleware('role:kasir,admin,superadmin')->group(function () {
+    Route::middleware([RoleMiddleware::class.':kasir,admin,superadmin'])->group(function () {
         // Topup & Register Customer
         Route::get('/topup', [TopupController::class, 'index'])->name('topup.index');
         Route::post('/topup', [TopupController::class, 'store'])->name('topup.store');

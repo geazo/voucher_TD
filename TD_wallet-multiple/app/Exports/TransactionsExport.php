@@ -27,7 +27,9 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
      */
     public function query()
     {
-        $query = Transaction::query()->with(['wallet.customer.membership', 'operator']);
+        // PENTING 1: Ubah Eager Loading.
+        // Membership sekarang dipanggil lewat wallet (wallet.membership), bukan lewat customer lagi.
+        $query = Transaction::query()->with(['wallet.customer', 'wallet.membership', 'operator']);
 
         if ($this->type === 'topup') {
             $query->where('type', 'kredit');
@@ -49,11 +51,11 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
             'Waktu',
             'Nama Customer',
             'No Telp',
-            'Tier',           // Kolom baru
-            'Dompet',
+            'Tier Kartu',     // Sedikit penyesuaian nama kolom agar lebih jelas
+            'Jenis Dompet',   // (Uang / Poin)
             'Tipe Transaksi', // (KREDIT/DEBIT/ADJUSTMENT)
             'Nominal',
-            'Keterangan',     // Kolom baru (Penting untuk adjustment)
+            'Keterangan',
             'Operator'
         ];
     }
@@ -69,7 +71,10 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
             $t->wallet->customer->nama ?? 'N/A',
             // Paksa jadi teks agar 0 di depan tidak hilang
             " " . ($t->wallet->customer->notelp ?? '-'),
-            $t->wallet->customer->membership->name ?? 'Customer',
+
+            // PENTING 2: Ambil nama Tier langsung dari relasi dompetnya
+            $t->wallet->membership->name ?? 'Reguler', // Silakan ganti 'Reguler' dengan nama fallback Anda yang baru
+
             $t->wallet->type ?? '-',
             strtoupper($t->type),
             $t->nominal,

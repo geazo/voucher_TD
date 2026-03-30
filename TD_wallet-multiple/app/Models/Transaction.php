@@ -32,15 +32,18 @@ class Transaction extends Model
         return $this->belongsTo(Wallet::class, 'wallet_id');
     }
 
-    // --- TAMBAHKAN RELASI INI ---
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'order_id');
     }
 
-    // --- PASTIKAN RELASI INI JUGA ADA ---
     public function operator(): BelongsTo
     {
         return $this->belongsTo(Operator::class, 'operator_id');
+    }
+    // anti dupe dupe
+    public function extension()
+    {
+        return $this->hasOne(BalanceExtension::class, 'transaction_id')->latest();
     }
 }

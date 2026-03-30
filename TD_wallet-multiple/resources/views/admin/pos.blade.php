@@ -52,7 +52,7 @@
 
                         <div class="mt-4 p-3 bg-light rounded text-muted small">
                             <i class="bi bi-info-circle me-1"></i> Pilih item dari daftar layanan, tentukan jumlah (qty),
-                            lalu tekan tombol <strong>+</strong> atau <strong>Enter</strong> untuk menambahkannya ke rincian
+                            lalu tekan <strong>tombol +</strong> untuk menambahkannya ke rincian
                             tagihan.
                         </div>
 

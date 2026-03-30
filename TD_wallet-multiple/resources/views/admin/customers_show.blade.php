@@ -3,7 +3,7 @@
     <div class="container-fluid py-4">
 
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold mb-0">Detail Customer</h4>
+            <h4 class="fw-bold mb-0">Detail Member</h4>
             <a href="{{ route('customers.index') }}" class="btn btn-light border shadow-sm fw-bold">
                 <i class="bi bi-arrow-left me-1"></i> Kembali
             </a>
@@ -27,11 +27,14 @@
             <div class="col-md-4 mb-3 mb-md-0">
                 <div class="card shadow-sm border-0 h-100" style="border-top: 4px solid #0dcaf0;">
                     <div class="card-body">
-                        <h6 class="fw-bold text-muted mb-3">Informasi Customer</h6>
+                        <h6 class="fw-bold text-muted mb-3">Informasi Member</h6>
                         <h5 class="fw-bold text-dark mb-1">{{ $customer->nama }}</h5>
                         <p class="mb-1 small text-muted"><i class="bi bi-telephone me-2"></i>{{ $customer->notelp ?? '-' }}
                         </p>
-                        <p class="mb-3 small text-muted"><i class="bi bi-envelope me-2"></i>{{ $customer->email ?? '-' }}
+                        <p class="mb-1 small text-muted"><i class="bi bi-envelope me-2"></i>{{ $customer->email ?? '-' }}
+                        </p>
+                        <p class="mb-3 small text-muted"><i
+                                class="bi bi-credit-card me-2"></i>{{ $dompetUang->no_rekening ?? '-' }}
                         </p>
 
                         <span class="badge {{ $membership ? $membership->text_color : 'text-muted' }} border shadow-sm"
@@ -136,11 +139,45 @@
                                         {{ $tx->operator_nama ?? 'Sistem' }}
                                     </td>
                                     <td class="text-center">
-                                        @if ($tx->type === 'kredit' && $tx->sisa_saldo > 0)
+                                        @php
+                                            $isExpired =
+                                                $tx->expired_at && \Carbon\Carbon::parse($tx->expired_at)->isPast();
+
+                                            // Ambil riwayat pengajuan terakhir untuk transaksi ini
+                                            $latestExt = $tx->extension;
+
+                                            // Cek 2 kondisi gembok kita
+                                            $isPending = $latestExt && $latestExt->status === 'pending';
+                                            $isRecovered =
+                                                $latestExt &&
+                                                $latestExt->status === 'approved' &&
+                                                $latestExt->is_recovery == 1;
+
+                                            // Tombol HANYA muncul jika: Tipe Kredit + Tidak Pending + Belum Pernah Direcover
+                                            $showButton =
+                                                $tx->type === 'kredit' &&
+                                                !$isPending &&
+                                                !$isRecovered &&
+                                                ($tx->sisa_saldo > 0 || $isExpired);
+                                        @endphp
+
+                                        @if ($isPending)
+                                            <span class="badge bg-warning text-dark border"
+                                                title="Menunggu Acc Super Admin">
+                                                <i class="bi bi-hourglass-split me-1"></i> Menunggu
+                                            </span>
+                                        @elseif ($isRecovered)
+                                            <span class="badge bg-success border"
+                                                title="Saldo hangus ini sudah diganti ke transaksi baru">
+                                                <i class="bi bi-check-circle me-1"></i> Dipulihkan
+                                            </span>
+                                        @elseif ($showButton)
                                             <a href="{{ route('admin.extensions.create', ['transaction_id' => $tx->id]) }}"
-                                                class="btn btn-sm btn-outline-primary"
-                                                title="Ajukan Perpanjangan Masa Aktif Saldo">
-                                                <i class="bi bi-calendar-plus"></i> Perpanjang
+                                                class="btn btn-sm {{ $isExpired ? 'btn-warning text-dark border-warning' : 'btn-outline-primary' }} fw-bold shadow-sm"
+                                                title="{{ $isExpired ? 'Pulihkan Saldo yang Sudah Hangus' : 'Ajukan Perpanjangan Masa Aktif Saldo' }}">
+                                                <i
+                                                    class="bi {{ $isExpired ? 'bi-arrow-counterclockwise' : 'bi-calendar-plus' }}"></i>
+                                                {{ $isExpired ? 'Pulihkan' : 'Perpanjang' }}
                                             </a>
                                         @else
                                             <span class="text-muted small">-</span>

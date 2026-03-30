@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom shadow-sm">
     <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="/">
+        <a class="navbar-brand d-flex align-items-center" href="{{ route('login') }}">
             <img src="{{ asset('logo/logo_tamandayu.jpg') }}" alt="Logo" height="40" class="me-2">
             <span class="fw-bold text-success">
                 {{ config('', '') }}

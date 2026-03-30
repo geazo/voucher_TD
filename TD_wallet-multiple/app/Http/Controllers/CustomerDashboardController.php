@@ -110,7 +110,7 @@ class CustomerDashboardController extends Controller
         $membership = $wallets->first()->membership;
 
         // 5. Ambil data Topup aktif KHUSUS untuk dompet di tier ini
-        $activeTopups = \App\Models\Transaction::with('wallet')
+        $activeTopups = Transaction::with('wallet')
             ->whereIn('wallet_id', $wallets->pluck('id')) // Filter berdasarkan wallet_id yang valid
             ->where('type', 'kredit')
             ->where('sisa_saldo', '>', 0)

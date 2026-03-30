@@ -64,7 +64,11 @@
 
                         <form action="{{ route('admin.extensions.store') }}" method="POST">
                             @csrf
+
                             <input type="hidden" name="transaction_id" value="{{ $transaction->id }}">
+                            <input type="hidden" name="is_recovery" value="{{ $isRecovery ? 1 : 0 }}">
+                            <input type="hidden" name="nominal_uang" value="{{ $saldoUang }}">
+                            <input type="hidden" name="nominal_poin" value="{{ $saldoPoin }}">
 
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Tambahan Masa Aktif (Hari)</label>

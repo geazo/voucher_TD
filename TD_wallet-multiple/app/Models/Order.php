@@ -12,15 +12,19 @@ class Order extends Model
         'operator_id',
         'total_tagihan',
         'bayar_uang',
-        'bayar_poin'];
+        'bayar_poin'
+    ];
 
-    public function details() {
+    public function details()
+    {
         return $this->hasMany(OrderDetail::class);
     }
-    public function customer() {
+    public function customer()
+    {
         return $this->belongsTo(Customer::class);
     }
-    public function transactions() {
+    public function transactions()
+    {
         return $this->hasMany(Transaction::class); // Untuk melihat mutasi dompet dari order ini
     }
 }

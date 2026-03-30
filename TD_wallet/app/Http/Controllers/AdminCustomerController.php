@@ -99,6 +99,7 @@ class AdminCustomerController extends Controller
         $memberships = Membership::all();
         return view('admin.customers_edit', compact('customer', 'memberships'));
     }
+    
     public function show($id)
     {
         $customer = Customer::with('wallets')->findOrFail($id);

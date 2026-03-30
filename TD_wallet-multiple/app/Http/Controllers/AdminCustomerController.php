@@ -31,11 +31,7 @@ class AdminCustomerController extends Controller
         return view('admin.customers', compact('customers')); // Pastikan nama view ini sesuai
     }
     // Fungsi Export Excel
-    public function export()
-    {
-        $filename = 'Master_Customer_TamanDayu_' . date('Y-m-d_H-i') . '.xlsx';
-        return Excel::download(new CustomersExport(), $filename);
-    }
+
     // Form Registrasi (Kasir, Admin, Superadmin)
     public function create()
     {
@@ -56,7 +52,7 @@ class AdminCustomerController extends Controller
             'notelp' => 'required|string|unique:customers,notelp|max:15',
             'email'  => 'required|email|unique:customers,email',
             'kota_domisili' => 'required|string|max:255',
-            'gender' => 'required|in:Laki-laki,Perempuan',
+            'gender' => 'required|in:Laki-laki,Perempuan,Lainnya',
         ]);
 
         try {
@@ -99,6 +95,7 @@ class AdminCustomerController extends Controller
         $memberships = Membership::all();
         return view('admin.customers_edit', compact('customer', 'memberships'));
     }
+
     public function show(Request $request, $id)
     {
         $customer = Customer::with('wallets.membership')->findOrFail($id);
@@ -166,5 +163,12 @@ class AdminCustomerController extends Controller
             : "Customer {$customer->nama} berhasil dinon-aktifkan.";
 
         return redirect()->route('customers.index')->with('success', $pesan);
+    }
+
+    public function export()
+    {
+        $filename = 'Master_Customer_TamanDayu_' . date('Y-m-d_H-i') . '.xlsx';
+        $memberships = Membership::orderBy('id', 'asc')->get();
+        return Excel::download(new CustomersExport($memberships), $filename);
     }
 }

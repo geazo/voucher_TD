@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; // Jangan lupa panggil facade Auth
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,23 +14,27 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->redirectGuestsTo(function (Request $request) {
-            // 1. Jika URL yang sedang diakses berawalan /operator atau /operator/...
-            if ($request->is('operator') || $request->is('operator/*')) {
-                return route('login'); // Lempar ke login kasir/admin
-            }
-            // 2. Jika request berupa API/AJAX (Opsional, agar tidak error HTML saat fetch data)
-            if ($request->expectsJson()) {
-                return null;
-            }
-            // 3. Sisanya (Default): Lempar ke halaman login Customer
-            return route('customer.login');
 
+        // 1. PENGGANTI Authenticate.php
+        // Mengatur ke mana user diusir jika BELUM LOGIN tapi nekat akses halaman rahasia
+        $middleware->redirectGuestsTo(fn (Request $request) =>
+            $request->is('customer*') ? route('customer.login') : route('login')
+        );
+
+        // 2. PENGGANTI RedirectIfAuthenticated.php
+        // Mengatur ke mana user diarahkan jika SUDAH LOGIN tapi iseng buka halaman login
+        $middleware->redirectUsersTo(function (Request $request) {
+            // Jika dia adalah Customer, kembalikan ke dashboard customer
+            if (Auth::guard('customer')->check()) {
+                return route('customer.dashboard');
+            }
+            // Jika dia adalah Operator/Admin, kembalikan ke dashboard admin
+            return route('dashboard');
         });
         $middleware->alias([
             'role' => RoleMiddleware::class,
         ]);
+
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
     })->create();
