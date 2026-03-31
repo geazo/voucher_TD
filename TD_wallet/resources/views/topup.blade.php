@@ -112,7 +112,7 @@
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
     <script>
-        // Pindahkan SEMUA kode ke dalam DOMContentLoaded agar dieksekusi setelah halaman & Bootstrap siap
+        
         document.addEventListener('DOMContentLoaded', function() {
 
             // 1. Inisialisasi Tom Select
@@ -132,32 +132,26 @@
             const customerSelect = document.getElementById('customer_id');
             const packageSelect = document.getElementById('membership_id');
 
-            // Inisialisasi Modal SEKARANG aman karena sudah di dalam DOMContentLoaded
             const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
 
             // 3. Event Listener Tombol Proses
             btnTriggerModal.addEventListener('click', function() {
 
-                // VALIDASI MANUAL:
-                // Karena Tom Select menyembunyikan <select> customer_id, HTML5 checkValidity() bisa error.
-                // Kita periksa manual apakah nilainya kosong.
                 if (customerSelect.value === "" || packageSelect.value === "") {
-                    // Panggil reportValidity() hanya untuk trigger balon pesan di field membership yang terlihat
+
                     topupForm.reportValidity();
-                    return; // Hentikan proses jika belum lengkap
+                    return;
                 }
 
-                // Ambil Option yang sedang dipilih
+
                 const selectedCustOption = customerSelect.options[customerSelect.selectedIndex];
                 const selectedPkgOption = packageSelect.options[packageSelect.selectedIndex];
 
-                // Estafet data ke dalam Modal
                 document.getElementById('modalCustName').textContent = selectedCustOption.getAttribute('data-nama');
                 document.getElementById('modalCustPhone').textContent = selectedCustOption.getAttribute('data-notelp');
                 document.getElementById('modalCustEmail').textContent = selectedCustOption.getAttribute('data-email');
                 document.getElementById('modalPkgName').textContent = selectedPkgOption.text;
 
-                // Tampilkan Modal
                 confirmModal.show();
             });
 

@@ -46,10 +46,10 @@
 
                             <input type="password" name="password" id="password" required
                                 class="form-control form-control-lg" placeholder="" />
-                            <a href="{{ route('customer.password.request') }}"
+                            {{-- <a href="{{ route('customer.password.request') }}"
                                 class="text-success text-decoration-none small fw-bold">
                                 Lupa Password?
-                            </a>
+                            </a> --}}
                         </div>
 
                         <button type="submit" class="btn btn-success btn-lg w-100 fw-bold">
