@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx\Rels;
 
@@ -170,5 +171,15 @@ class AdminCustomerController extends Controller
         $filename = 'Master_Customer_TamanDayu_' . date('Y-m-d_H-i') . '.xlsx';
         $memberships = Membership::orderBy('id', 'asc')->get();
         return Excel::download(new CustomersExport($memberships), $filename);
+    }
+    // func reset password incase mailer gaada email
+    public function resetPassword($id)
+    {
+        $customer = Customer::findOrFail($id);
+        $customer->update([
+            'password' => Hash::make('password')
+        ]);
+
+        return redirect()->back()->with('success', "Password customer : " . $customer->nama . " \nberhasil direset ke default (password).");
     }
 }

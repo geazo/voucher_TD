@@ -15,7 +15,25 @@
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom-0">
                         <h5 class="m-0 fw-bold"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Edit Data Customer
                         </h5>
+
+                        <button type="button" class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#resetPasswordModal">
+                            <i class="bi bi-key me-1"></i> Reset Password
+                        </button>
                     </div>
+
+                    @if (session('success'))
+                        <div class="alert alert-success mx-4 mt-3 mb-0">{{ session('success') }}</div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger mx-4 mt-3 mb-0">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
 
                     <div class="card-body p-4 pt-2">
 
@@ -35,7 +53,7 @@
                                         $dompetPoin = $wallets->where('type', 'Poin')->first();
                                         $membership = $wallets->first()->membership ?? null;
 
-                                        $tierName = $membership ? $membership->name : 'Reguler (Default)';
+                                        $tierName = $membership ? $membership->name : 'Customer (Default)';
                                         $textColor = $membership ? $membership->text_color : 'text-dark';
                                         $bgStyle = $membership
                                             ? "background: linear-gradient(135deg, {$membership->color_start} 0%, {$membership->color_end} 100%); border: none;"
@@ -152,6 +170,36 @@
                     </div>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold" id="resetPasswordModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Reset Sandi
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p>Apakah Anda yakin ingin mereset kata sandi untuk pelanggan <strong>{{ $customer->nama }}</strong>?</p>
+                    <div class="alert alert-warning mb-0 border-warning">
+                        Kata sandi akan dikembalikan ke *default*, yaitu: <br>
+                        <span class="fs-5 fw-bold font-monospace mt-1 d-block text-center text-dark bg-white border rounded py-1">password</span>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-dismiss="modal">Batal</button>
+                    <form action="{{ route('customers.reset_password', $customer->id) }}" method="POST" class="m-0">
+                        @csrf
+                        @method('PUT')
+                        <button type="submit" class="btn btn-danger fw-bold">
+                            <i class="bi bi-check2-circle me-1"></i> Ya, Reset Sekarang
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

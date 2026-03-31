@@ -102,7 +102,7 @@ Route::prefix('operator')->middleware(['auth'])->group(function () {
     Route::post('/logout', [OperatorController::class, 'logout'])->name('logout');
 
     // Akses Kasir, Admin, Superadmin
-    Route::middleware([RoleMiddleware::class.':kasir,admin,superadmin'])->group(function () {
+    Route::middleware([RoleMiddleware::class . ':kasir,admin,superadmin'])->group(function () {
         // Topup & Register Customer
         Route::get('/topup', [TopupController::class, 'index'])->name('topup.index');
         Route::post('/topup', [TopupController::class, 'store'])->name('topup.store');
@@ -137,6 +137,7 @@ Route::prefix('operator')->middleware(['auth'])->group(function () {
         Route::get('/customers/export', [AdminCustomerController::class, 'export'])->name('customers.export');
         Route::get('/customers/{customer}/detail', [AdminCustomerController::class, 'show'])->name('customers.show');
         Route::get('/customers/{customer}/edit', [AdminCustomerController::class, 'edit'])->name('customers.edit');
+        Route::put('/customers/{customer}/reset-password', [AdminCustomerController::class, 'resetPassword'])->name('customers.reset_password');
         Route::put('/customers/{customer}', [AdminCustomerController::class, 'update'])->name('customers.update');
         Route::delete('/customers/{customer}', [AdminCustomerController::class, 'destroy'])->name('customers.destroy');
 

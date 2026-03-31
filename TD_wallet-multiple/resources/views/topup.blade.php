@@ -23,8 +23,8 @@
 
                         <div class="mb-3">
                             <label for="customer_id" class="form-label fw-semibold">Pilih Customer</label>
-                            <select name="customer_id" id="customer_id" required placeholder="Ketik nama atau no HP...">
-                                <option value="" selected>Ketik nama atau no HP...</option>
+                            <select name="customer_id" id="customer_id" required placeholder="Search customer..." class="form-select text-dark">
+                                <option value="" selected></option>
                                 @foreach ($customers as $customer)
                                     <option value="{{ $customer->id }}" data-nama="{{ $customer->nama }}"
                                         data-phone="{{ $customer->notelp }}" data-email="{{ $customer->email }}">

@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AdminCustomerController extends Controller
@@ -99,7 +100,7 @@ class AdminCustomerController extends Controller
         $memberships = Membership::all();
         return view('admin.customers_edit', compact('customer', 'memberships'));
     }
-    
+
     public function show($id)
     {
         $customer = Customer::with('wallets')->findOrFail($id);
@@ -159,5 +160,15 @@ class AdminCustomerController extends Controller
             : "Customer {$customer->nama} berhasil dinon-aktifkan.";
 
         return redirect()->route('customers.index')->with('success', $pesan);
+    }
+    // func reset password incase mailer gaada email
+    public function resetPassword($id)
+    {
+        $customer = Customer::findOrFail($id);
+        $customer->update([
+            'password' => Hash::make('password')
+        ]);
+
+        return redirect()->back()->with('success', "Password customer : " . $customer->nama . " \nberhasil direset ke default (password).");
     }
 }
