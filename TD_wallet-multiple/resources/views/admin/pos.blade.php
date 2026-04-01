@@ -188,8 +188,17 @@
                                 <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-1"></i>Dibayar
                                     (Uang)</span>
                                 <span class="fw-bold text-success">Rp
-                                    {{ number_format($invoice['tagihan_uang'], 0, ',', '.') }}</span>
+                                    {{ number_format($invoice['tagihan_uang'], 0, ',', '.') }}
+                                </span>
                             </div>
+                            @if (isset($invoice['tagihan_tunai']) && $invoice['tagihan_tunai'] > 0)
+                                <div class="d-flex justify-content-between mb-1 small">
+                                    <span class="text-dark fw-bold"><i
+                                            class="bi bi-cash-coin text-warning me-1"></i>Dibayar (Tunai)</span>
+                                    <span class="fw-bold text-warning">Rp
+                                        {{ number_format($invoice['tagihan_tunai'], 0, ',', '.') }}</span>
+                                </div>
+                            @endif
 
                             @if ($invoice['tagihan_poin'] > 0)
                                 <div class="d-flex justify-content-between mb-1 small">
@@ -238,6 +247,77 @@
                     var myModalEl = document.getElementById('invoiceModal');
                     var invoiceModal = new bootstrap.Modal(myModalEl);
                     invoiceModal.show();
+                }
+            });
+        </script>
+    @endif
+    @if (session('insufficient_balance'))
+        @php $info = session('insufficient_balance'); @endphp
+        <div class="modal fade" id="insufficientBalanceModal" data-bs-backdrop="static" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title fw-bold text-dark"><i class="bi bi-exclamation-circle me-2"></i>Saldo Tidak
+                            Cukup!</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4 text-center">
+                        <p>Saldo uang milik <strong>{{ $info['customer_name'] }}</strong> tidak cukup untuk membayar
+                            tagihan.</p>
+
+                        <ul class="list-group list-group-flush text-start mb-4 border rounded">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span class="text-muted">Tagihan Uang (Setelah </span>
+                                <strong>Rp {{ number_format($info['tagihan_uang'], 0, ',', '.') }}</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between text-danger">
+                                <span>Saldo Uang Aktif</span>
+                                <strong>Rp {{ number_format($info['saldo_uang'], 0, ',', '.') }}</strong>
+                            </li>
+                            <li
+                                class="list-group-item d-flex justify-content-between bg-light fw-bold fs-5 mt-1 border-top">
+                                <span>Kekurangan:</span>
+                                <span class="text-danger">Rp {{ number_format($info['kekurangan'], 0, ',', '.') }}</span>
+                            </li>
+                        </ul>
+
+                        <h6 class="mb-3 text-muted fw-bold">Konfirmasi ke Pelanggan:</h6>
+
+                        <form action="{{ route('scan.process') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="qr_payload" value="{{ old('qr_payload') }}">
+                            <input type="hidden" name="nominal_total" value="{{ old('nominal_total') }}">
+                            <input type="hidden" name="cart_data" value="{{ old('cart_data') }}">
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="submit" name="fallback_action" value="topup"
+                                        class="btn btn-outline-primary w-100 py-3 fw-bold">
+                                        <i class="bi bi-wallet2 d-block fs-3 mb-1"></i>
+                                        TOPUP SALDO
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button type="submit" name="fallback_action" value="tunai"
+                                        class="btn btn-success w-100 py-3 fw-bold shadow-sm">
+                                        <i class="bi bi-cash-coin d-block fs-3 mb-1"></i>
+                                        BAYAR TUNAI
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Buka modal secara otomatis jika ada session insufficient_balance
+            window.addEventListener('load', function() {
+                if (typeof bootstrap !== 'undefined') {
+                    var myModalEl = document.getElementById('insufficientBalanceModal');
+                    var insufficientModal = new bootstrap.Modal(myModalEl);
+                    insufficientModal.show();
                 }
             });
         </script>

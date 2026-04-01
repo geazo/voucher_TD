@@ -23,7 +23,6 @@
             flex: 0 0 90%;
             scroll-snap-align: center;
             margin: 0 5%;
-            /* Memberi jarak agar kartu sebelah terlihat sedikit */
             transition: all 0.3s ease;
             opacity: 0.5;
             transform: scale(0.95);
@@ -46,79 +45,95 @@
             </div>
         </div>
 
-        <div class="wallet-carousel mx-n3" id="walletCarousel">
-            @forelse($displayCards as $index => $card)
-                @php
-                    $m = $card->membership;
-                    $tierName = $m ? $m->name : 'Customer';
-                    $textColor = $m ? $m->text_color : 'text-dark';
-                    $cardStyle = $m
-                        ? "background: linear-gradient(135deg, {$m->color_start} 0%, {$m->color_end} 100%); border: none;"
-                        : 'background-color: #ffffff; border: 1px solid #dee2e6 !important;';
-                    $badgeStyle = $m
-                        ? 'background-color: rgba(255,255,255,0.2); color: inherit;'
-                        : 'background-color: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;';
-                @endphp
+        <div class="position-relative mt-2 mb-2">
 
-                <div class="card-wrapper {{ $index === 0 ? 'active-card' : '' }}"
-                    data-membership-id="{{ $card->membership_id }}">
-                    <a href="{{ route('customer.saldo.info') }}?membership_id={{ $card->membership_id }}"
-                        class="text-decoration-none">
-                        <div class="card {{ $textColor }} shadow h-100"
-                            style="border-radius: 1.25rem; {{ $cardStyle }} position: relative; overflow: hidden;">
+            <button id="btnPrevCard"
+                class="btn btn-light text-success shadow-sm position-absolute top-50 start-0 translate-middle-y"
+                style="z-index: 10; border-radius: 50%; width: 40px; height: 40px; display: none;">
+                <i class="bi bi-chevron-left fs-5 fw-bold"></i>
+            </button>
 
-                            @if ($m)
-                                <div
-                                    style="position: absolute; top: -30px; right: -30px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;">
-                                </div>
-                            @endif
+            <div class="wallet-carousel mx-n3" id="walletCarousel">
+                @forelse($displayCards as $index => $card)
+                    @php
+                        $m = $card->membership;
+                        $tierName = $m ? $m->name : 'Customer';
+                        $textColor = $m ? $m->text_color : 'text-dark';
+                        $cardStyle = $m
+                            ? "background: linear-gradient(135deg, {$m->color_start} 0%, {$m->color_end} 100%); border: none;"
+                            : 'background-color: #ffffff; border: 1px solid #dee2e6 !important;';
+                        $badgeStyle = $m
+                            ? 'background-color: rgba(255,255,255,0.2); color: inherit;'
+                            : 'background-color: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;';
+                    @endphp
 
-                            <div class="card-body p-4 position-relative">
-                                <div class="d-flex justify-content-between align-items-start mb-4">
-                                    <div>
-                                        <p class="mb-1 opacity-75" style="font-size: 0.85rem;">Member ID</p>
-                                        <h5 class="fw-bold mb-0" style="letter-spacing: 2px; font-family: monospace;">
-                                            {{ $card->no_rekening }}
-                                        </h5>
+                    <div class="card-wrapper {{ $index === 0 ? 'active-card' : '' }}"
+                        data-membership-id="{{ $card->membership_id }}" data-total-saldo="{{ $card->totalSaldo }}">
+
+                        <a href="{{ route('customer.saldo.info') }}?membership_id={{ $card->membership_id }}"
+                            class="text-decoration-none">
+                            <div class="card {{ $textColor }} shadow h-100"
+                                style="border-radius: 1.25rem; {{ $cardStyle }} position: relative; overflow: hidden;">
+
+                                @if ($m)
+                                    <div
+                                        style="position: absolute; top: -30px; right: -30px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%;">
                                     </div>
-                                    <div class="text-end">
-                                        <span class="badge shadow-sm mb-2"
-                                            style="{{ $badgeStyle }} letter-spacing: 1px; padding: 0.5em 1em;">
-                                            {{ strtoupper($tierName) }}
-                                        </span>
-                                    </div>
-                                </div>
+                                @endif
 
-                                <div class="row">
-                                    <div class="col-6 border-end border-dark border-opacity-10">
-                                        <p class="mb-1 opacity-75" style="font-size: 0.8rem;">Saldo Uang</p>
-                                        <div class="fw-bold text-nowrap" style="font-size: clamp(1.1rem, 5vw, 1.5rem);">
-                                            <span style="font-size: 0.7em;">Rp</span>
-                                            {{ number_format($card->saldoUang, 0, ',', '.') }}
+                                <div class="card-body p-4 position-relative">
+                                    <div class="d-flex justify-content-between align-items-start mb-4">
+                                        <div>
+                                            <p class="mb-1 opacity-75" style="font-size: 0.85rem;">Member ID</p>
+                                            <h5 class="fw-bold mb-0" style="letter-spacing: 2px; font-family: monospace;">
+                                                {{ $card->no_rekening }}
+                                            </h5>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge shadow-sm mb-2"
+                                                style="{{ $badgeStyle }} letter-spacing: 1px; padding: 0.5em 1em;">
+                                                {{ strtoupper($tierName) }}
+                                            </span>
                                         </div>
                                     </div>
-                                    <div class="col-6 ps-3">
-                                        <p class="mb-1 opacity-75" style="font-size: 0.8rem;">Saldo Poin</p>
-                                        <div class="fw-bold text-nowrap" style="font-size: clamp(1.1rem, 5vw, 1.5rem);">
-                                            {{ number_format($card->saldoPoin, 0, ',', '.') }} <span
-                                                style="font-size: 0.7em;" class="opacity-75">Pts</span>
+
+                                    <div class="row">
+                                        <div class="col-6 border-end border-dark border-opacity-10">
+                                            <p class="mb-1 opacity-75" style="font-size: 0.8rem;">Saldo Uang</p>
+                                            <div class="fw-bold text-nowrap" style="font-size: clamp(1.1rem, 5vw, 1.5rem);">
+                                                <span style="font-size: 0.7em;">Rp</span>
+                                                {{ number_format($card->saldoUang, 0, ',', '.') }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6 ps-3">
+                                            <p class="mb-1 opacity-75" style="font-size: 0.8rem;">Saldo Poin</p>
+                                            <div class="fw-bold text-nowrap" style="font-size: clamp(1.1rem, 5vw, 1.5rem);">
+                                                {{ number_format($card->saldoPoin, 0, ',', '.') }} <span
+                                                    style="font-size: 0.7em;" class="opacity-75">Pts</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </a>
-                </div>
-            @empty
-                <div class="card-wrapper active-card w-100 mx-3">
-                    <div class="card bg-light border-0 shadow-sm" style="border-radius: 1.25rem; min-height: 160px;">
-                        <div class="card-body d-flex flex-column justify-content-center align-items-center text-muted">
-                            <i class="bi bi-wallet2 fs-2 mb-2"></i>
-                            <h6 class="fw-bold">Belum Ada Rekening</h6>
+                        </a>
+                    </div>
+                @empty
+                    <div class="card-wrapper active-card w-100 mx-3" data-total-saldo="0">
+                        <div class="card bg-light border-0 shadow-sm" style="border-radius: 1.25rem; min-height: 160px;">
+                            <div class="card-body d-flex flex-column justify-content-center align-items-center text-muted">
+                                <i class="bi bi-wallet2 fs-2 mb-2"></i>
+                                <h6 class="fw-bold">Belum Ada Rekening</h6>
+                            </div>
                         </div>
                     </div>
-                </div>
-            @endforelse
+                @endforelse
+            </div>
+
+            <button id="btnNextCard"
+                class="btn btn-light text-success shadow-sm position-absolute top-50 end-0 translate-middle-y"
+                style="z-index: 10; border-radius: 50%; width: 40px; height: 40px; display: none;">
+                <i class="bi bi-chevron-right fs-5 fw-bold"></i>
+            </button>
         </div>
 
         <div class="mb-4 mt-2">
@@ -211,7 +226,14 @@
             const emptyMsg = document.getElementById('emptyTxMsg');
             const activeTierLabel = document.getElementById('activeTierLabel');
 
-            // Fungsi untuk mencari kartu yang posisinya paling tengah di layar
+            // Variabel Tombol
+            const btnPrev = document.getElementById('btnPrevCard');
+            const btnNext = document.getElementById('btnNextCard');
+            const btnPayNow = document.getElementById('btnPayNow');
+            const btnPayText = document.getElementById('btnPayText');
+            const btnPayIcon = document.getElementById('btnPayIcon');
+
+            // 1. FUNGSI UPDATE KARTU AKTIF & DISABLE TOMBOL BAYAR
             function updateActiveCard() {
                 if (cards.length === 0) return;
 
@@ -229,11 +251,11 @@
                     }
                 });
 
-                // 1. Ubah Efek Visual Kartu (Fokus)
+                // Efek Visual Kartu Fokus
                 cards.forEach(c => c.classList.remove('active-card'));
                 closestCard.classList.add('active-card');
 
-                // 2. Filter Daftar Transaksi di Bawah
+                // Filter Daftar Transaksi
                 let activeMembershipId = closestCard.getAttribute('data-membership-id');
                 let visibleCount = 0;
 
@@ -242,29 +264,94 @@
                         row.style.display = 'block';
                         visibleCount++;
                     } else {
-                        row.style.display = 'none'; // Sembunyikan transaksi kartu lain
+                        row.style.display = 'none';
                     }
                 });
 
-                // 3. Tampilkan pesan kosong jika tidak ada transaksi
                 emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
 
-                // 4. Update Label Header (Opsional untuk UX)
-                let tierName = closestCard.querySelector('.badge').innerText;
+                let tierName = closestCard.querySelector('.badge') ? closestCard.querySelector('.badge').innerText :
+                    'Reguler';
                 activeTierLabel.innerText = "Kartu: " + tierName;
 
+                // ==========================================
+                // LOGIKA SMART PAYMENT BUTTON
+                // ==========================================
+                let totalSaldo = parseFloat(closestCard.getAttribute('data-total-saldo'));
                 const btnPayNow = document.getElementById('btnPayNow');
-                let memberIdParam = activeMembershipId ? activeMembershipId : '';
-                btnPayNow.href = "{{ route('customer.payment.auth') }}?membership_id=" + memberIdParam;
+
+                if (totalSaldo <= 0) {
+                    // Tambahkan class disabled bawaan Bootstrap
+                    btnPayNow.classList.add('disabled');
+                    btnPayNow.href = "javascript:void(0);"; // Cegah aksi klik
+                } else {
+                    // Hapus class disabled
+                    btnPayNow.classList.remove('disabled');
+
+                    let memberIdParam = activeMembershipId && activeMembershipId !== 'default' ? activeMembershipId : '';
+                    btnPayNow.href = "{{ route('customer.payment.auth') }}?membership_id=" + memberIdParam;
+                }
             }
-            // timeout biar enteng scroll event selesai dulu baru update
+
+            // 2. FUNGSI CEK TOMBOL KANAN KIRI
+            function checkButtonVisibility() {
+                if (cards.length <= 1) {
+                    btnPrev.style.display = 'none';
+                    btnNext.style.display = 'none';
+                    return;
+                }
+
+                if (Math.ceil(carousel.scrollLeft) <= 5) {
+                    btnPrev.style.display = 'none';
+                } else {
+                    btnPrev.style.display = 'flex';
+                    btnPrev.style.justifyContent = 'center';
+                    btnPrev.style.alignItems = 'center';
+                }
+
+                let maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
+                if (Math.ceil(carousel.scrollLeft) >= (maxScrollLeft - 5)) {
+                    btnNext.style.display = 'none';
+                } else {
+                    btnNext.style.display = 'flex';
+                    btnNext.style.justifyContent = 'center';
+                    btnNext.style.alignItems = 'center';
+                }
+            }
+
+            // 3. EVENT LISTENER TOMBOL KANAN KIRI
+            if (btnPrev) {
+                btnPrev.addEventListener('click', function() {
+                    let cardWidth = cards[0].clientWidth + (cards[0].offsetLeft * 2);
+                    carousel.scrollBy({
+                        left: -cardWidth,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+
+            if (btnNext) {
+                btnNext.addEventListener('click', function() {
+                    let cardWidth = cards[0].clientWidth + (cards[0].offsetLeft * 2);
+                    carousel.scrollBy({
+                        left: cardWidth,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+
+            // 4. EVENT LISTENER SCROLL
             let scrollTimeout;
             carousel.addEventListener('scroll', function() {
                 clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(updateActiveCard, 50);
+                scrollTimeout = setTimeout(function() {
+                    updateActiveCard();
+                    checkButtonVisibility();
+                }, 50);
             });
 
             updateActiveCard();
+            setTimeout(checkButtonVisibility, 150);
         });
     </script>
 @endpush

@@ -28,17 +28,17 @@
                         </div>
                     </div>
 
-                    @if(count($invoiceData['items']) > 0)
+                    @if(isset($invoiceData['items']) && count($invoiceData['items']) > 0)
                         <div class="mb-4">
                             <h6 class="fw-bold text-muted border-bottom pb-2 mb-2">Rincian Item</h6>
                             @foreach($invoiceData['items'] as $item)
                                 <div class="d-flex justify-content-between align-items-start mb-2 small">
                                     <div>
-                                        <div class="fw-bold text-dark">{{ $item->item_name }}</div>
-                                        <div class="text-muted">{{ $item->qty }} x Rp {{ number_format($item->price, 0, ',', '.') }}</div>
+                                        <div class="fw-bold text-dark">{{ $item['item_name'] ?? $item->item_name }}</div>
+                                        <div class="text-muted">{{ $item['qty'] ?? $item->qty }} x Rp {{ number_format($item['price'] ?? $item->price, 0, ',', '.') }}</div>
                                     </div>
                                     <div class="fw-bold text-dark text-end">
-                                        Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                        Rp {{ number_format($item['subtotal'] ?? $item->subtotal, 0, ',', '.') }}
                                     </div>
                                 </div>
                             @endforeach
@@ -54,14 +54,21 @@
                         <hr class="my-2" style="border-top: 1px solid #dee2e6;">
 
                         <div class="d-flex justify-content-between mb-1 small">
-                            <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-1"></i>Uang</span>
+                            <span class="text-dark fw-bold"><i class="bi bi-wallet2 text-success me-1"></i>Dibayar (Uang)</span>
                             <span class="fw-bold text-success">Rp {{ number_format($invoiceData['tagihan_uang'], 0, ',', '.') }}</span>
                         </div>
 
-                        @if ($invoiceData['tagihan_poin'] > 0)
+                        @if (isset($invoiceData['tagihan_poin']) && $invoiceData['tagihan_poin'] > 0)
                             <div class="d-flex justify-content-between mb-1 small">
-                                <span class="text-dark fw-bold"><i class="bi bi-star-fill text-primary me-1"></i>Poin</span>
+                                <span class="text-dark fw-bold"><i class="bi bi-star-fill text-primary me-1"></i>Dibayar (Poin)</span>
                                 <span class="fw-bold text-primary">{{ number_format($invoiceData['tagihan_poin'], 0, ',', '.') }} Pts</span>
+                            </div>
+                        @endif
+
+                        @if (isset($invoiceData['tagihan_tunai']) && $invoiceData['tagihan_tunai'] > 0)
+                            <div class="d-flex justify-content-between mb-1 small">
+                                <span class="text-dark fw-bold"><i class="bi bi-cash-coin text-warning me-1"></i>Tagihan (Tunai)</span>
+                                <span class="fw-bold text-warning">Rp {{ number_format($invoiceData['tagihan_tunai'], 0, ',', '.') }}</span>
                             </div>
                         @endif
                     </div>

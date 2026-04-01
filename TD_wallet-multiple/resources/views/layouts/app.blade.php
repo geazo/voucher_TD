@@ -36,6 +36,49 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 1. Fungsi Utama Pemisah Ribuan
+        function formatRibuan(value) {
+            // Hapus semua karakter selain angka (termasuk huruf dan simbol)
+            let number_string = value.replace(/[^,\d]/g, '').toString();
+            let split = number_string.split(',');
+            let sisa = split[0].length % 3;
+            let rupiah = split[0].substr(0, sisa);
+            let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+            // Tambahkan titik jika yang diinput lebih dari 3 digit
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            return split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // 2. Event Listener Global (Berlaku untuk elemen lama maupun yang baru dirender)
+            document.body.addEventListener('input', function(e) {
+                // Jika elemen yang sedang diketik memiliki class 'input-ribuan'
+                if (e.target.classList.contains('input-ribuan')) {
+                    e.target.value = formatRibuan(e.target.value);
+                }
+            });
+
+            // 3. Pembersih Siluman (Cegat proses Submit Form)
+            document.body.addEventListener('submit', function(e) {
+                let form = e.target;
+                // Cari semua input ber-class 'input-ribuan' di dalam form yang sedang disubmit
+                let ribuanInputs = form.querySelectorAll('.input-ribuan');
+
+                ribuanInputs.forEach(function(input) {
+                    // Hilangkan semua titik sebelum dikirim ke Laravel
+                    input.value = input.value.replace(/\./g, '');
+                });
+            });
+
+        });
+    </script>
 </body>
 
 </html>

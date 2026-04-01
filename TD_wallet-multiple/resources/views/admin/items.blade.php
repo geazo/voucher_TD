@@ -59,7 +59,7 @@
                                             </div>
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Harga (Rp)</label>
-                                                <input type="number" name="harga" class="form-control" value="{{ $item->harga }}" min="0" required>
+                                                <input type="text" name="harga" class="form-control input-ribuan" inputmode="numeric" value="{{ $item->harga }}" min="0" required>
                                             </div>
                                         </div>
                                         <div class="modal-footer bg-light">
@@ -98,7 +98,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Harga (Rp)</label>
-                        <input type="number" name="harga" class="form-control" placeholder="Contoh: 100000" min="0" required>
+                        <input type="text" name="harga" class="form-control input-ribuan" inputmode="numeric" placeholder="Contoh: 100000" min="0" required>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">

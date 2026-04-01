@@ -16,11 +16,19 @@ class CustomerDashboardController extends Controller
     public function index()
     {
         $customer = Auth::guard('customer')->user();
-        $customer->load(['wallets.membership']);
+
+        // 1. TAMBAHKAN withCount('transactions')
+        // Ini akan secara otomatis menghitung jumlah histori transaksi tiap dompet tanpa memberatkan server
+        $customer->load([
+            'wallets' => function($query) {
+                $query->withCount('transactions');
+            },
+            'wallets.membership'
+        ]);
 
         $walletsGrouped = $customer->wallets->groupBy('membership_id');
 
-        // 1. Petakan semua dompet yang dimiliki customer
+        // 2. Petakan semua dompet yang dimiliki customer
         $allCards = $walletsGrouped->map(function ($wallets, $membershipId) {
             $dompetUang = $wallets->where('type', 'Uang')->first();
             $dompetPoin = $wallets->where('type', 'Poin')->first();
@@ -29,6 +37,9 @@ class CustomerDashboardController extends Controller
             $saldoUang = $dompetUang ? $dompetUang->balance : 0;
             $saldoPoin = $dompetPoin ? $dompetPoin->balance : 0;
 
+            // KODE BARU: Jumlahkan total histori transaksi dari dompet Uang & Poin di tier ini
+            $totalTransactions = $wallets->sum('transactions_count');
+
             return (object) [
                 'membership_id' => $membership ? $membership->id : 'default', // Gunakan 'default' jika null
                 'membership'    => $membership,
@@ -36,27 +47,29 @@ class CustomerDashboardController extends Controller
                 'saldoUang'     => $saldoUang,
                 'saldoPoin'     => $saldoPoin,
                 'totalSaldo'    => $saldoUang + $saldoPoin,
-                'wallet_ids'    => $wallets->pluck('id')->toArray()
+                'wallet_ids'    => $wallets->pluck('id')->toArray(),
+                'has_history'   => $totalTransactions > 0 // KODE BARU: True jika pernah transaksi
             ];
         })->values();
 
-        // 2. LOGIKA SMART VISIBILITY
-        // Pisahkan dompet default (Customer biasa) dan dompet Premium (Punya Tier)
-        $defaultCard = $allCards->where('membership_id', 'default')->first();
-
-        // Ambil dompet Premium yang SALDO-nya LEBIH DARI 0
-        $activePremiumCards = $allCards->filter(function ($card) {
-            return $card->membership_id !== 'default' && $card->totalSaldo > 0;
+        // 3. LOGIKA SMART VISIBILITY (DIPERBARUI)
+        $displayCards = $allCards->filter(function ($card) {
+            return $card->has_history || $card->totalSaldo > 0;
         })->values();
 
-        // dompet default
-        if ($activePremiumCards->count() > 0) {
-            $displayCards = $activePremiumCards;
-        } else {
+        $displayCards = $displayCards->sortBy(function($card) {
+            // Jika tidak punya membership (Reguler), beri nilai 0 agar tampil pertama
+            // Jika punya, gunakan ID, diskon_belanja, atau harga sebagai patokan urutan
+            return $card->membership ? $card->membership->id : 0;
+        })->values();
+
+        // Fallback: Jika ini adalah pengguna baru...
+        if ($displayCards->isEmpty()) {
+            $defaultCard = $allCards->where('membership_id', 'default')->first();
             $displayCards = $defaultCard ? collect([$defaultCard]) : collect();
         }
 
-        // 3. Ambil Transaksi HANYA untuk dompet yang sedang ditampilkan
+        // 4. Ambil Transaksi HANYA untuk dompet yang sedang ditampilkan
         $allowedWalletIds = [];
         foreach ($displayCards as $c) {
             $allowedWalletIds = array_merge($allowedWalletIds, $c->wallet_ids);
@@ -147,6 +160,7 @@ class CustomerDashboardController extends Controller
                 'total'          => $order->total_tagihan,
                 'tagihan_uang'   => $order->bayar_uang,
                 'tagihan_poin'   => $order->bayar_poin,
+                'tagihan_tunai'  => $order->bayar_tunai,
                 'waktu'          => $order->created_at->format('d M Y, H:i'),
                 'jenis'          => 'Pembayaran POS Berhasil',
                 'items'          => $order->details, // Mengirim rincian barang dari database

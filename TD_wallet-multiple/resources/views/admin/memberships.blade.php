@@ -98,7 +98,7 @@
                                                             <label class="form-label fw-bold">Syarat Nominal (Harga)</label>
                                                             <div class="input-group">
                                                                 <span class="input-group-text bg-light">Rp</span>
-                                                                <input type="number" name="harga" class="form-control" value="{{ floatval($item->harga) }}" min="0" required>
+                                                                <input type="text" name="harga" class="form-control input-ribuan" inputmode="numeric" value="{{ floatval($item->harga) }}" min="0" required>
                                                             </div>
                                                         </div>
                                                         <div class="col-12 col-md-6">
@@ -180,7 +180,7 @@
                                     <label class="form-label fw-bold">Nominal (Harga)</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light">Rp</span>
-                                        <input type="number" name="harga" class="form-control" min="0" required>
+                                        <input type="text" name="harga" class="form-control input-ribuan" inputmode="numeric" min="0" required>
                                     </div>
                                 </div>
                                 <div class="col-12 col-md-6">

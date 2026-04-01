@@ -12,7 +12,8 @@ class Order extends Model
         'operator_id',
         'total_tagihan',
         'bayar_uang',
-        'bayar_poin'
+        'bayar_poin',
+        'bayar_tunai', // Tambahan untuk menyimpan jumlah pembayaran tunai
     ];
 
     public function details()
